@@ -34,23 +34,32 @@ export function validate(value = '', rule: any, data: any) {
         min = nums[0];
         max = nums[1];
       }
-      
+
+      let minTip, maxTip
+      if (tips[r]) {
+        if (tips[r].includes(":")) {
+          [minTip, maxTip] = tips[r].split(":")
+        } else {
+          minTip = maxTip = tips[r]
+        }
+      }
+
       if (Array.isArray(value)) {
         if (min && value.length < Number(min)) {
-          message = `长度不能小于${min}`;
+          message = minTip || `不能小于${min}项`
         }
         if (max && value.length > Number(max)) {
-          message = `长度不能超过${max}`;
+          message = maxTip || `不能超过${max}项`;
         }
       } else {
         if (min && (value + '').trim().length < Number(min)) {
-          message = `长度不能小于${min}`;
+          message = minTip || `长度不能小于${min}`;
         }
         if (max && (value + '').trim().length > Number(max)) {
-          message = `长度不能超过${max}`;
+          message = maxTip || `长度不能超过${max}`;
         }
       }
-      
+
     } else if (typeof r === 'string' && r === emptyValue) {
       if (value === '' || value === void 0 || value === null) {
         return message;

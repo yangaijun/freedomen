@@ -22,6 +22,7 @@ function FInput(props: IInputProps) {
     const { item } = props
 
     const [value, setValue] = useState<string>()
+    const [blurValue, setBlurValue] = useState<string | null>(null)
     const innerRef = useRef<any>({ value: null })
     const disabled = useDisabled(props)
     const className = useClassName(props)
@@ -33,16 +34,23 @@ function FInput(props: IInputProps) {
     const onChange = useChange(props)
     const onEvent = useEvent(props)
 
+    const type = getOriginalType(item)
+    const Element = types[type] || Input;
+
+    const { changeEventType = changeEventTypes.INPUT } = config
+
     useEffect(() => {
         if (item.value !== innerRef.current.value) {
             setValue(item.value)
         }
     }, [item.value])
 
-    const type = getOriginalType(item)
-    const Element = types[type] || Input;
-
-    const { changeEventType = changeEventTypes.INPUT } = config
+    useEffect(() => {
+        if (blurValue !== null) {
+            onEvent(type === 'input-search' ? 'search' : 'pressEnter', blurValue)
+            setBlurValue(null)
+        }
+    }, [blurValue, onEvent])
 
     const events = useMemo(() => {
         const params: any = {
@@ -57,7 +65,7 @@ function FInput(props: IInputProps) {
             onPressEnter: ({ target: { value } }: any) => {
                 if (changeEventType === changeEventTypes.BLUR) {
                     onChange(value)
-                    setTimeout(() => { onEvent(type === 'input-search' ? 'search' : 'pressEnter', value); });
+                    setBlurValue(value)
                 } else {
                     onEvent(type === 'input-search' ? 'search' : 'pressEnter', value);
                 }
@@ -65,7 +73,7 @@ function FInput(props: IInputProps) {
         }
         if (type === 'input-search') {
             params.onSearch = (value: string) => {
-                onEvent('search', value);
+                params.onPressEnter({ target: { value } })
             };
         }
         return params

@@ -57,21 +57,6 @@ function FTable(props: ITableProps) {
         setPage({ ...row })
     }, [onEvent])
 
-    const innerPagination = useMemo(() => {
-        if (pagination) {
-            return {
-                size: 'small',
-                showQuickJumper: true,
-                showSizeChanger: true,
-                showTotal: (total: number) => `共 ${total} 条`,
-                current: page.pageNo,
-                ...pagination,
-                onChange: pageEvent
-            }
-        }
-        return pagination
-    }, [pagination, page, pageEvent])
-
     const innerChange = useCallback((data: any) => {
         const nextData = [...innerRef.current.data]
         let currentData: any = nextData
@@ -113,63 +98,6 @@ function FTable(props: ITableProps) {
         );
     }, [onEvent, innerChange])
 
-    const getColumns = useCallback((column: any, key: number) => {
-        if (!hasPermission({ column, value: column.value, data: column.data })) return
-
-        if (column.children) {
-            return (
-                <ColumnGroup key={key} title={column.label}>
-                    {column.children.map((c: any, index: any) => {
-                        return getColumns(c, index);
-                    })}
-                </ColumnGroup>
-            );
-        } else {
-            const tempColumn = {
-                ...column,
-                config: {
-                    align: config?.align,
-                    ...column.config
-                }
-            }
-            const tableColumnConfig = splitConfig(tempColumn.config, tableColumnProps)
-            return (
-                <Column
-                    key={key}
-                    title={tempColumn.label}
-                    dataIndex={tempColumn.prop}
-                    width={tempColumn.width}
-                    {...tableColumnConfig}
-                    render={(value, data: any, index) => {
-                        if (tempColumn.render) {
-                            let render;
-                            if (Array.isArray(tempColumn.render)) {
-                                render = tempColumn.render;
-                            } else if (typeof tempColumn.render === 'function') {
-                                render = tempColumn.render({ value, data });
-                            }
-
-                            if (Array.isArray(render)) {
-                                return getColumnDom(render, data, index);
-                            } else {
-                                return render;
-                            }
-                        } else {
-                            if (!tempColumn.type) tempColumn.type = 'text';
-                            return getColumnDom([tempColumn], data, index);
-                        }
-                    }}
-                />
-            );
-        }
-    }, [getColumnDom, config?.align])
-
-    const tableColumns = useMemo(() => (
-        columns.map((column: any, key: number) => (
-            getColumns(column, key)
-        ))
-    ), [columns, getColumns])
-
     const selectChange = useCallback((selectedRowKeys: any[], selectedRows: any[]) => {
         setSelecteds(selectedRowKeys)
         onEvent({
@@ -199,12 +127,89 @@ function FTable(props: ITableProps) {
             }
         }
 
+        if (pagination) {
+            defaultConfig.pagination = {
+                size: 'small',
+                showQuickJumper: true,
+                showSizeChanger: true,
+                showTotal: (total: number) => `共 ${total} 条`,
+                current: page.pageNo,
+                ...config?.pagination,
+                ...pagination,
+                onChange: pageEvent
+            } 
+            if (pagination.pageNo) {
+                defaultConfig.pagination.current = pagination.pageNo
+            }
+        } else if (pagination === false) {
+            defaultConfig.pagination = false
+        }
+
         return objectMerge(
             defaultConfig,
             DefaultConfigs.Table,
             config
         )
-    }, [config, selecteds, selectChange])
+    }, [config, selecteds, pagination, pageEvent, page.pageNo, selectChange])
+
+    const getColumns = useCallback((column: any, key: number) => {
+        if (!hasPermission({ column, value: column.value, data: column.data })) return
+
+        if (column.children) {
+            return (
+                <ColumnGroup key={key} title={column.label}>
+                    {column.children.map((c: any, index: any) => {
+                        return getColumns(c, index);
+                    })}
+                </ColumnGroup>
+            );
+        } else {
+            const tempColumn = {
+                ...column,
+                config: {
+                    align: innerConfig?.align,
+                    ...column.config
+                }
+            }
+            const tableColumnConfig = splitConfig(tempColumn.config, tableColumnProps)
+            return (
+                <Column
+                    key={key}
+                    title={tempColumn.label}
+                    dataIndex={tempColumn.prop}
+                    width={tempColumn.width}
+                    {...tableColumnConfig}
+                    render={(value: any, data: any, index: number) => {
+                        if (tempColumn.render) {
+                            let render;
+                            if (Array.isArray(tempColumn.render)) {
+                                render = tempColumn.render;
+                            } else if (typeof tempColumn.render === 'function') {
+                                render = tempColumn.render({ value, data });
+                            }
+
+                            if (Array.isArray(render)) {
+                                return getColumnDom(render, data, index);
+                            } else {
+                                return render;
+                            }
+                        } else {
+                            if (!tempColumn.type) tempColumn.type = 'text';
+                            return getColumnDom([tempColumn], data, index);
+                        }
+                    }}
+                />
+            );
+        }
+    }, [getColumnDom, innerConfig?.align])
+
+    const tableColumns = useMemo(() => (
+        columns.map((column: any, key: number) => (
+            getColumns(column, key)
+        ))
+    ), [columns, getColumns])
+
+
 
     const _style = useMemo(() => getStyle(keyName, style), [style])
     const _className = useMemo(() => getClass(keyName, className), [className])
@@ -215,7 +220,6 @@ function FTable(props: ITableProps) {
             className={_className}
             dataSource={innerData}
             onChange={tableChange}
-            pagination={innerPagination}
             {...innerConfig}
         >
             {tableColumns}

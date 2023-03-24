@@ -1,21 +1,31 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useClassName, useOptions, useStyle, useChange, useDisabled, useConfig } from "../../hooks/useBase";
+import { useClassName, useOptions, useStyle, useChange, useDisabled, useConfig, useRidkeyConfig } from "../../hooks/useBase";
 import { AutoComplete } from "antd";
 import { IAutoCompleteProps } from "../../config/type";
 import MarginLoadingOutlined from "../MarginLoadingOutlined";
+const ridKeys = ['changeEventType']
+
+const changeEventTypes: any = {
+    BLUR: 'blur',
+    INPUT: 'input' //default
+}
 
 function FAutoComplete(props: IAutoCompleteProps) {
     const { item } = props
 
     const [value, setValue] = useState<string>()
-    const innerRef = useRef<any>({ value: null })
+    const innerRef = useRef<any>({ value: null, pre: null })
 
     const style = useStyle(props)
     const onChange = useChange(props)
     const disabled = useDisabled(props)
     const className = useClassName(props)
-    const { options, loading } = useOptions(props, true)
+   
     const config = useConfig(props)
+    const ridKeysConfig = useRidkeyConfig(config, ridKeys)
+    const { changeEventType = changeEventTypes.INPUT } = config
+ 
+    const { options, loading } = useOptions(props, value)
 
     const dropdownRender = useCallback((menu: React.ReactNode) => {
         return loading ? <MarginLoadingOutlined /> : menu
@@ -34,17 +44,26 @@ function FAutoComplete(props: IAutoCompleteProps) {
             options={options}
             className={className}
             dropdownRender={dropdownRender}
+            onBlur={() => {
+                if (changeEventType === changeEventTypes.BLUR && innerRef.current.value !== null) {
+                    onChange(value)
+                }
+            }}
             placeholder={item.placeholder}
             disabled={disabled}
             onChange={value => {
-                innerRef.current.value = value
+                innerRef.current.pre = innerRef.current.value
 
+                innerRef.current.value = value
                 setValue(value)
-                onChange(value)
+
+                if (changeEventType === changeEventTypes.INPUT) {
+                    onChange(value)
+                }
             }}
-            {...config}
+            {...ridKeysConfig}
         />
-    }, [style, value, item.placeholder, disabled, onChange, className, options, dropdownRender, config])
+    }, [style, value, item.placeholder, disabled, onChange, className, options, dropdownRender, changeEventType, ridKeysConfig])
 }
 
 export default FAutoComplete

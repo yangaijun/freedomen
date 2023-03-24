@@ -6,7 +6,7 @@ import util, { getChainValueByString } from "../utils/util";
 export function useChange(props: any): (value: any) => void {
     const { onChange, item } = props
 
-    return (value) => { 
+    return (value) => {
         if (onChange && util.notEquals(getChainValueByString(item.$data, item.prop), value)) {
             onChange({
                 prop: item.prop,
@@ -210,7 +210,7 @@ export function useRidkeyConfig(config: any, ridKeys: any[] = []): any {
     return innerRidkeyConfig
 }
 
-export function useOptions(props: any, defaultRenewOnValueChange?: boolean): { options: any[], loading: boolean } {
+export function useOptions(props: any, innerValue?: any): { options: any[], loading: boolean } {
     const { item: { prop, options, $data: data, value, $preData: preData } } = props
     const [innerOptions, setInnerOptions] = useState<any[]>([])
     const [loading, setLoading] = useState<boolean>(true)
@@ -238,8 +238,8 @@ export function useOptions(props: any, defaultRenewOnValueChange?: boolean): { o
             const calcNeedUpdate = () => {
                 const { shouldUpdate } = useUpdateRef.current
 
-                if (defaultRenewOnValueChange && shouldUpdate === null) {
-                    return util.notEquals(getChainValueByString(preData, prop), getChainValueByString(data, prop))
+                if (innerValue !== undefined && shouldUpdate === null) {
+                    return true
                 } else if (shouldUpdate !== null) {
                     return typeof shouldUpdate === 'boolean' ? shouldUpdate : shouldUpdate(preData, data)
                 } else {
@@ -255,7 +255,8 @@ export function useOptions(props: any, defaultRenewOnValueChange?: boolean): { o
 
                 const promise = new Promise((resolve) => {
                     setLoading(true)
-                    options({ resolve, data, value, preData, shouldUpdate });
+                    let nextValue = innerValue !== undefined ? innerValue : value
+                    options({ resolve, data, value: nextValue, preData, shouldUpdate });
                 });
 
                 promise.then((options: any) => {
@@ -266,7 +267,7 @@ export function useOptions(props: any, defaultRenewOnValueChange?: boolean): { o
                 })
             }
         }
-    }, [prop, innerOptions, value, preData, data, options, defaultRenewOnValueChange])
+    }, [prop, innerOptions, value, preData, data, options, innerValue])
 
     useEffect(() => {
         return () => {

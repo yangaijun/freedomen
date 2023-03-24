@@ -183,9 +183,24 @@ export function getSubString(fullText: string, len = 0) {
   if (fullText.length !== subText.length) subText += '...';
   return subText;
 }
+//a: {c: {a: 12}}, b: {c: {d: 13}}  =>a: {c: {a: 12, d: 13}}
+function copyBtoA(a: any = {}, b: any = {}) {
+  if (isPlainObject(a) && isPlainObject(b)) {
+    for (let key in b) {
+      if ((key in a) && isPlainObject(a[key]) ) {
+        copyBtoA(a[key], b[key])
+      } else {
+        a[key] = b[key]
+      }
+    }
+  }
+}
 
 export function objectMerge(target: any, ...source: any) {
-  return Object.assign(target, ...source)
+  for(let item of source) {
+    copyBtoA(target, item)
+  }
+  return target
 }
 
 export function isUndefined(data: any = {}, skey = "", split = '.') {
