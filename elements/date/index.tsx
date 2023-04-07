@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { getOriginalType } from "../../utils/base";
 import { DatePicker } from "antd";
-import moment from 'moment'
+import dayjs from 'dayjs'
 import { IDateProps } from "../../config/type";
 import { useStyle, useClassName, useDisabled, useChange, useConfig } from "../../hooks/useBase";
 
@@ -24,7 +24,7 @@ function FDate(props: IDateProps) {
     const dType = types[type]
 
     const innerValue = useMemo(() => {
-        return item.value ? moment(item.value) : null
+        return item.value ? dayjs(item.value) : null
     }, [item.value])
 
     return useMemo(() => {

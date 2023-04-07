@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
 import { TimePicker } from "antd";
-import moment from 'moment'
+import dayjs from 'dayjs'
 import { ITimePickerProps } from "../../config/type";
 import { useStyle, useClassName, useDisabled, useChange, useConfig } from "../../hooks/useBase";
 
@@ -14,7 +14,7 @@ function FTimePicker(props: ITimePickerProps) {
 
     const innerValue = useMemo(() => {
         return item.value ?
-            moment(item.value)
+            dayjs(item.value)
             : null
     }, [item.value])
 

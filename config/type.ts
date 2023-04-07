@@ -3,9 +3,9 @@ import { AutoCompleteProps, ButtonProps, FormProps, TreeProps, CascaderProps, Ch
 
 export type IFunType = (params: IFunParams) => boolean
 
-export type IEventType = (params: IEventParams) => void | undefined | null | Record<any, any>
+export type IEventType = (params: IEventParams) => void | undefined | null | FData
 
-export type IListEventType = (params: IListEventParams) => void | undefined | null | Record<any, any>
+export type IListEventType = (params: IListEventParams) => void | undefined | null | FData
 
 export type IDisabledType = boolean | ((params: IFunParams) => boolean)
 
@@ -13,31 +13,33 @@ export type IStyleType = React.CSSProperties | ((params: IFunParams) => React.CS
 
 export type IRenderType = IRenderParams
 
+export type FData = Record<string, any>
+
 export interface IRenderParams extends IDefaultParams {
-    data: Record<any, any>,
+    data: FData,
     $base: {
         onChange: (value: any) => void,
         onEvent: (type: string, value: any) => void,
-        shouldUpdate: ((preData: Record<any, any>, currentData: Record<any, any>) => boolean)
-        config: Record<any, any>
+        shouldUpdate: ((preData: FData, currentData: FData) => boolean)
+        config: FData
     }
 }
 
 export interface IFunParams {
     value: any,
-    data: Record<any, any>
+    data: FData
 }
 
 export interface IEventParams {
     prop: string,
     type: string,
     value: any,
-    row: Record<any, any>,
+    row: FData,
     [key: string]: any
 }
 
 export interface IListEventParams extends IEventParams {
-    row: { $index: number, $key: string } & Record<any, any>
+    row: { $index: number, $key: string } & FData
 }
 
 export interface IDefaultParams {
@@ -52,16 +54,16 @@ export type IOptionParams = {
     value: any,
     option?: any,
     [key: string]: any
-} | string | Record<any, any>
+} | string | FData
 
-export type IOptionType = IOptionParams | ((params: { data: Record<any, any>, value: any, resolve: (p: IOptionParams) => void }) => void)
+export type IOptionType = IOptionParams | ((params: { data: FData, value: any, resolve: (p: IOptionParams) => void }) => void)
 
 export interface IRegionColumnItemProps {
     prop?: '$reset' | string,
     type?: string | ((params: IFunParams) => string),
     load?: boolean | IFunType,
-    $data?: Record<any, any>,
-    $preData?: Record<any, any>,
+    $data?: FData,
+    $preData?: FData,
 
     [key: string]: any
 }
@@ -72,12 +74,12 @@ export type IRegionColumnsType = (
     | ISliderItemProps | ISwitchItemProps | ITagItemProps | ITextItemProps | ITreeItemProps | ITreeSelectItemProps | IUploadItemProps
 )
 export interface IRegionProps {
-    data?: Record<any, any>,
+    data?: FData,
     columns: IRegionColumnsType[],
     className?: string,
     style?: React.CSSProperties,
     onEvent?: IEventType,
-    onChange?: (data: Record<any, any>) => void
+    onChange?: (data: FData) => void
 }
 
 export type ITableColumnsType = IRegionColumnsType & {
@@ -86,13 +88,13 @@ export type ITableColumnsType = IRegionColumnsType & {
     ellipsis?: boolean
 }
 export interface ITableProps {
-    data?: Record<any, any>[],
+    data?: FData[],
     columns: ITableColumnsType[],
     className?: string,
     pagination?: any,
     config?: TableProps<any> & { selection?: boolean, disabled?: boolean |  ((row: any) => boolean), align?: 'left' | 'right' | 'center' },
     style?: React.CSSProperties,
-    onChange?: (data: Record<any, any>) => void,
+    onChange?: (data: FData) => void,
     onEvent?: IEventType
 }
 
@@ -135,24 +137,24 @@ export interface IListProps {
     columns: IRegionColumnsType[],
     className?: string,
     style?: React.CSSProperties,
-    onEvent?: IListEventType,
-    onChange?: (data: Record<any, any>) => void
+    onEvent?: IEventType,
+    onChange?: (data: FData) => void
 }
 
 export type IFormColumnsType = IRegionColumnsType & {
     label?: string,
     span?: number,
-    rule: string | Record<any, any> | ((params: { data: Record<any, any>, value: any }) => Promise<string | void>)
+    rule: string | FData | ((params: { data: FData, value: any }) => Promise<string | void>)
 }
 export interface IFormProps {
     pathSplitChar?: string,
     columns: IFormColumnsType[],
     style?: React.CSSProperties,
     className?: string,
-    data?: Record<any, any>,
-    onSubmit?: (data: Record<any, any>, submitColumn: IEventParams) => void,
+    data?: FData,
+    onSubmit?: (data: FData, submitColumn?: IEventParams) => void,
     onEvent?: IEventType,
-    onChange?: (data: Record<any, any>) => void,
+    onChange?: (data: FData) => void,
     config?: FormProps
 }
 
@@ -160,8 +162,8 @@ export interface IRenderProps {
     children?: React.ReactElement[],
     onChange?: IFunType,
     item: IRegionColumnItemProps & IDefaultParams & {
-        $data: Record<any, any>,
-        $preData: Record<any, any>
+        $data: FData,
+        $preData: FData
     }
 }
 
@@ -428,7 +430,7 @@ export type ITextItemProps = IRegionColumnItemProps & IDefaultParams & {
     config?: {
         tooltip?: boolean,
         maxlength?: number
-    } & Record<any, any>
+    } & FData
     [key: string]: any
 }
 export interface ITextProps {

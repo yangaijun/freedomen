@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { useChange, useClassName, useConfig, useDisabled, useEvent, useStyle } from "../hooks/useBase";
-import { IRenderParams, IRenderProps } from "../config/type";
+import { IEventParams, IRenderParams, IRenderProps } from "../config/type";
 import { getFullType } from "../utils/base";
 import util, { getChainValueByString } from "../utils/util";
 import { hasNameProp, isRenderComponent } from "../config/props";
@@ -34,33 +34,29 @@ export default function Render(props: IRenderProps) {
             preData,
             data,
             children,
-            $base: {
-                style,
-                className,
-                placeholder,
-                disabled,
-                onChange,
-                onEvent,
-                config,
-                shouldUpdate
-            }
+            $base: { style, className, placeholder, disabled, onChange, onEvent, config, shouldUpdate }
         })
-        
+
         if (cache?.type?.[isRenderComponent]) {
             const {
                 data: cacheData = value,
-                onChange: cacheOnChange = (data: any) => onChange(data)
+                onChange: cacheOnChange = (data: any) => onChange(data),
+                onEvent: cacheOnEvent
             } = cache.props
 
             cache = React.cloneElement(cache, {
                 name: cache?.type?.[hasNameProp] ? prop : undefined,
                 data: cacheData,
+                onEvent(params: IEventParams) {
+                    onEvent(params.type, params.value)
+                    return cacheOnEvent && cacheOnEvent(params)
+                },
                 onChange: cacheOnChange
             }, null)
         }
         return cache
     }
-    
+
     const renderd = useMemo(() => {
         useUpdateRef.current.effectPre = useUpdateRef.current.effectCurrent
         useUpdateRef.current.effectCurrent = { style, className, disabled, placeholder, config }

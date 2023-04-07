@@ -1,88 +1,34 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import React, { useCallback, useMemo, useState } from "react"
 import { Table } from 'antd';
 import Region from "../region";
 import { hasPermission } from "../config/permission"
-import util, { getClass, getStyle, objectMerge, splitConfig } from "../utils/util"
-import { ITableProps } from "../config/type";
+import { useListComponent } from "../hooks/useBase";
+import { getClass, getOrderKey, getStyle, objectMerge, splitConfig } from "../utils/util"
+import { FData, ITableProps } from "../config/type";
 import { getDefaultConfigs } from "../config/config";
-import { defaultPage, isRenderComponent, tableColumnProps, tablePageChangeProp, tableSelectionProp, tableSorterType } from "../config/props";
+import { changeType, clickType, defaultPage, isRenderComponent, tableColumnProps, tablePageChangeProp, tableSelectionProp, tableSorterType } from "../config/props";
 
 const { Column, ColumnGroup } = Table;
 
 const keyName = 'Table'
 
 function FTable(props: ITableProps) {
-    const { style, className, columns, data, pagination, onEvent = () => { }, onChange, config } = props
+    const { style, className, columns, data, pagination, onEvent, onChange, config } = props
 
-    const [innerData, setInnerData] = useState<any[]>([])
-    const [selecteds, setSelecteds] = useState<any[]>([])
+    const [selecteds, setSelecteds] = useState<FData[]>([])
     const [page, setPage] = useState(defaultPage)
-    const innerRef = useRef<any>({ data: [] })
 
-    const resetData = useCallback((data: any[] = [], $pIndexs?: number[], pIndex?: number): any[] => {
-        const newData = []
-        for (let i = 0; i < data.length; i++) {
-            if (Array.isArray(data[i])) {
-                newData.push(resetData(data[i]))
-            } else {
-                const item = {
-                    key: util.getUUID(),
-                    ...data[i],
-                    $index: i
-                }
-                if (pIndex !== undefined) {
-                    if ($pIndexs) {
-                        item.$pIndexs = [...$pIndexs, pIndex]
-                    } else {
-                        item.$pIndexs = [pIndex]
-                    }
-                }
-                if (Array.isArray(data[i].children)) {
-                    item.children = resetData(data[i].children, item.$pIndexs, i)
-                }
-                newData.push(item)
-            }
-        }
-        return newData;
-    }, [])
-
-    useEffect(() => {
-        innerRef.current.data = resetData(data)
-        setInnerData(innerRef.current.data)
-    }, [data, resetData])
+    const { innerData, innerChange, innerEvent } = useListComponent(onChange, onEvent, data)
 
     const pageEvent = useCallback((pageNo: number, pageSize: number) => {
         const row = { pageNo, pageSize }
-        onEvent({ prop: tablePageChangeProp, type: 'change', value: row, row });
         setPage({ ...row })
+        onEvent && onEvent({ prop: tablePageChangeProp, type: changeType, value: row, row });
     }, [onEvent])
-
-    const innerChange = useCallback((data: any) => {
-        const nextData = [...innerRef.current.data]
-        let currentData: any = nextData
-        if (data.$pIndexs) {
-            for (let index in data.$pIndexs) {
-                if (Array.isArray(currentData)) {
-                    currentData = currentData[index as any]
-                } else if (Array.isArray(currentData.children)) {
-                    currentData = currentData.children[index]
-                }
-            }
-        }
-        if (Array.isArray(currentData)) {
-            currentData[data.$index] = data
-        } else if (Array.isArray(currentData.children)) {
-            currentData.children[data.$index] = data
-        }
-
-        innerRef.current.data = nextData
-        onChange && onChange(innerRef.current.data)
-        setInnerData(innerRef.current.data)
-    }, [onChange])
 
     const tableChange = useCallback((p: any, f: any, sorter: any, extra: any) => {
         if (extra.action === 'sort') {
-            onEvent({ prop: sorter.field, type: tableSorterType, value: sorter.order, row: sorter })
+            onEvent && onEvent({ prop: sorter.field, type: tableSorterType, value: sorter.order, row: sorter })
         }
     }, [innerChange])
 
@@ -92,16 +38,17 @@ function FTable(props: ITableProps) {
                 key={key}
                 data={data}
                 columns={columns}
-                onEvent={onEvent}
+                onEvent={innerEvent}
                 onChange={innerChange}
             />
         );
-    }, [onEvent, innerChange])
+    }, [onEvent, innerEvent,innerChange])
+
 
     const selectChange = useCallback((selectedRowKeys: any[], selectedRows: any[]) => {
         setSelecteds(selectedRowKeys)
-        onEvent({
-            type: 'click',
+        onEvent && onEvent({
+            type: clickType,
             prop: tableSelectionProp,
             value: selectedRows,
             row: { selectedRows }
@@ -111,6 +58,7 @@ function FTable(props: ITableProps) {
     const innerConfig = useMemo(() => {
         const defaultConfig: any = {}
         const [DefaultConfigs] = getDefaultConfigs()
+        const paginationConfig: any = {}
 
         if (config?.selection) {
             defaultConfig.rowSelection = {
@@ -128,7 +76,7 @@ function FTable(props: ITableProps) {
         }
 
         if (pagination) {
-            defaultConfig.pagination = {
+            paginationConfig.pagination = {
                 size: 'small',
                 showQuickJumper: true,
                 showSizeChanger: true,
@@ -137,29 +85,33 @@ function FTable(props: ITableProps) {
                 ...config?.pagination,
                 ...pagination,
                 onChange: pageEvent
-            } 
+            }
             if (pagination.pageNo) {
-                defaultConfig.pagination.current = pagination.pageNo
+                paginationConfig.pagination.current = pagination.pageNo
             }
         } else if (pagination === false) {
-            defaultConfig.pagination = false
+            paginationConfig.pagination = false
         }
 
         return objectMerge(
             defaultConfig,
+            null,
             DefaultConfigs.Table,
-            config
+            config,
+            paginationConfig
         )
     }, [config, selecteds, pagination, pageEvent, page.pageNo, selectChange])
 
-    const getColumns = useCallback((column: any, key: number) => {
+    const getColumns = useCallback((column: any, index: number, level?: string) => {
         if (!hasPermission({ column, value: column.value, data: column.data })) return
+
+        const key = getOrderKey(level, index)
 
         if (column.children) {
             return (
                 <ColumnGroup key={key} title={column.label}>
                     {column.children.map((c: any, index: any) => {
-                        return getColumns(c, index);
+                        return getColumns(c, index, key);
                     })}
                 </ColumnGroup>
             );
@@ -172,6 +124,7 @@ function FTable(props: ITableProps) {
                 }
             }
             const tableColumnConfig = splitConfig(tempColumn.config, tableColumnProps)
+
             return (
                 <Column
                     key={key}
@@ -204,12 +157,9 @@ function FTable(props: ITableProps) {
     }, [getColumnDom, innerConfig?.align])
 
     const tableColumns = useMemo(() => (
-        columns.map((column: any, key: number) => (
-            getColumns(column, key)
-        ))
-    ), [columns, getColumns])
-
-
+        columns?.map((column: any, index: number) => {
+            return getColumns(column, index)
+        })), [columns, getColumns])
 
     const _style = useMemo(() => getStyle(keyName, style), [style])
     const _className = useMemo(() => getClass(keyName, className), [className])

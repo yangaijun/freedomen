@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useImperativeHandle, forwardRef, useMemo, useRef, useState } from 'react';
 import Render, { renderType, renderContainerType, customRenders } from '../render'
-import { IRegionColumnItemProps, IRegionProps } from '../config/type';
+import { FData, IEventParams, IRegionColumnItemProps, IRegionProps } from '../config/type';
 import { CONTAINER_NAMES, getContainerDom } from '../containers';
-import { customTypeProp, isRenderComponent, resetProp } from '../config/props';
-import util, { getChainValueByString, getClass, getStyle, isUndefined, resetToOtherObject, setChainValueByString } from '../utils/util';
+import { changeType, customTypeProp, isRenderComponent, resetProp, setType } from '../config/props';
+import util, { getChainValueByString, getClass, getOrderKey, getStyle, isUndefined, resetToOtherObject, setChainValueByString } from '../utils/util';
 import { hasPermission } from '../config/permission';
 import { getElementDom } from '../elements';
 import { getFullType } from '../utils/base';
@@ -16,10 +16,6 @@ function getLastColumn(columns: IRegionColumnItemProps[]) {
 
 function isResetProp(prop = '') {
     return prop.indexOf(resetProp) === 0
-}
-
-function isResetData(data: any) {
-    return data === null || (util.isPlainObject(data) && Object.keys(data).length === 0)
 }
 
 function getType(column: IRegionColumnItemProps): string {
@@ -36,7 +32,7 @@ export function isContainer(column: IRegionColumnItemProps = {}) {
     return regionType.indexOf(renderContainerType) === 0 || CONTAINER_NAMES.includes(getType(column));
 }
 
-function getResetColumn(column: IRegionColumnItemProps, data: Record<any, any>, preData: Record<any, any>) {
+function getResetColumn(column: IRegionColumnItemProps, data: FData, preData: FData) {
     const newColumn = { ...column }
 
     newColumn.value = isUndefined(data, newColumn.prop as string) ? newColumn.value : getChainValueByString(data, newColumn.prop as string);
@@ -55,7 +51,7 @@ function getResetColumn(column: IRegionColumnItemProps, data: Record<any, any>, 
     return newColumn
 }
 
-function getResetColumns(columns: IRegionColumnItemProps[], data: Record<any, any>, preData: Record<any, any>): IRegionColumnItemProps[] {
+function getResetColumns(columns: IRegionColumnItemProps[], data: FData, preData: FData): IRegionColumnItemProps[] {
     let newColumns = []
     for (let i = 0; i < columns.length; i++) {
         let column = columns[i];
@@ -69,128 +65,126 @@ function getResetColumns(columns: IRegionColumnItemProps[], data: Record<any, an
     return newColumns;
 }
 
-const cloneData = (data = {}) => {
+const cloneData = (data: FData) => {
     return util.clone(data)
 }
-
-const legalData = (data = {}) => {
-    return { ...data }
-}
-
 export interface FRegionRef {
     reset: (params?: any) => void,
     set: (prop: string, callback: Function | any) => void,
     get: (prop?: string) => any
 }
 
+type IRegionEventParams = IEventParams | null
+
 const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props: IRegionProps, ref: any) => {
-    const { data: propData, columns, className, style, onEvent, onChange } = props
-    const data = legalData(propData)
-
-    const innerRef = useRef<{ preData: any, data: any }>({ preData: cloneData(data), data })
-    const [initialData] = useState(() => cloneData(data))
-    const [innerData, setInnerData] = useState(data)
-    const [eventParams, setEventParams] = useState()
-
-    const changeInnerData = useCallback((nextData: any, params?: any) => {
+    const { data, columns, className, style, onEvent, onChange } = props
+    //内部维护数据
+    const [innerData, setInnerData] = useState<FData>(() => data || {})
+    //preData: 上一次的数据，data: 当前的数据
+    const innerRef = useRef<{ preData: FData, data: FData, onEvent?: Function, onChange?: Function }>(
+        { preData: {}, data: innerData, onEvent, onChange }
+    )
+    //第一次放入的初始化数据，用户使用 reset 方法回到此数据
+    const [initialData] = useState<FData>(() => data ? cloneData(data) : {})
+    const [eventParams, setEventParams] = useState<IRegionEventParams>(null)
+    //将当前的数据放到上一次数据对象，将下一步的数据放入当前数据数据
+    const setPreDataAndCurrentData = useCallback((nextData: FData) => {
         resetToOtherObject(innerRef.current.preData, innerRef.current.data)
         resetToOtherObject(innerRef.current.data, nextData)
-
         setInnerData(nextData)
-        setEventParams(params) 
-        //reset null  params 空不可以onChange
-        if (params !== null) {
-            onChange && onChange(nextData)
-        }
-    }, [onChange])
+    }, [])
+
+    const changeInnerData = useCallback((nextData: FData, params?: IRegionEventParams) => {
+        setPreDataAndCurrentData(nextData)
+        innerRef.current.onChange?.(nextData)
+        params && setEventParams(params)
+    }, [setPreDataAndCurrentData])
 
     const setItemValue = useCallback((prop: string, callback: Function | any) => {
-        const nextData = util.clone(innerRef.current.data)
+        if (!prop) return
+
+        const nextData = cloneData(innerRef.current.data)
         let value = callback
 
         if (typeof callback === 'function') {
             value = callback(getChainValueByString(nextData, prop))
-        } 
+        }
         setChainValueByString(nextData, prop, value)
         changeInnerData(nextData)
-    }, [])
+    }, [changeInnerData])
 
     const getItemValue = useCallback((prop?: string) => {
         if (!prop) {
-            return innerRef.current.data
+            return cloneData(innerRef.current.data)
         }
-        return getChainValueByString(innerRef.current.data, prop)
+        return getChainValueByString(cloneData(innerRef.current.data), prop)
     }, [])
 
-    const reset = useCallback((params?: any) => {
+    const reset = useCallback((params?: IRegionEventParams) => {
         if (params) {
-            params.row = util.clone(initialData);
+            params.row = cloneData(initialData);
         }
-        changeInnerData(util.clone(initialData), params)
-
+        changeInnerData(cloneData(initialData), params)
     }, [initialData, changeInnerData])
 
-    const handlerEvent = useCallback((params: any) => {
-        const newData = onEvent && onEvent(params);
+    const handlerEvent = useCallback((params: IEventParams) => {
+        const nextData = innerRef.current.onEvent?.(params);
 
-        if (newData instanceof Promise) {
-            newData.then(changeInnerData)
-        } else if (newData) {
-            changeInnerData(newData)
-        } else if (isResetData(newData)) {
-            reset(null)
+        if (nextData) {
+            changeInnerData(nextData)
+        } else if (nextData === null) {
+            reset()
         }
-    }, [onEvent, changeInnerData, reset])
+    }, [changeInnerData, reset])
 
-    const innerEvent = useCallback((params: any) => {
-        if (isResetProp(params.prop)) {
+    const innerEvent = useCallback((params: IEventParams) => {
+        if (params.type === setType) {
+            innerChange(params, setType)
+        } else if (isResetProp(params.prop)) {
             reset(params);
         } else {
-            params.row = util.clone(innerRef.current.data);
-            //reset中会回调到外部事件，不要放到下面
+            params.row = cloneData(innerRef.current.data);
             handlerEvent(params)
         }
-
     }, [reset, handlerEvent])
 
-    const innerChange = useCallback((params: Record<string, any>) => {
+    const innerChange = useCallback((params: IEventParams, type = changeType) => {
         if (params.prop) {
-            const nextData = util.clone(innerRef.current.data)
+            const nextData = cloneData(innerRef.current.data)
             setChainValueByString(nextData, params.prop, params.value)
-
             const nextParams = {
-                type: 'change',
                 ...params,
-                row: util.clone(nextData)
+                type,
+                row: cloneData(nextData)
             }
             changeInnerData(nextData, nextParams)
         }
     }, [changeInnerData])
 
     useImperativeHandle(ref, () => {
-        return {
-            reset,
-            set: setItemValue,
-            get: getItemValue
-        }
+        return { reset, set: setItemValue, get: getItemValue }
     })
 
     useEffect(() => {
-        const nextData = legalData(propData)
-        
-        resetToOtherObject(innerRef.current.preData, innerRef.current.data)
-        resetToOtherObject(innerRef.current.data, nextData)
-        setInnerData(nextData)
-    }, [propData])
+        innerRef.current.onChange = onChange
+    }, [onChange])
+
+    useEffect(() => {
+        innerRef.current.onEvent = onEvent
+    }, [onEvent])
+
+    useEffect(() => {
+        data && setPreDataAndCurrentData(data)
+    }, [data, setPreDataAndCurrentData])
 
     useEffect(() => {
         if (eventParams) {
             handlerEvent(eventParams)
-            setEventParams(undefined)
+            setEventParams(null)
         }
     }, [eventParams, handlerEvent])
 
-    const getContainer = useCallback((column: IRegionColumnItemProps, children: IRegionColumnItemProps[], key: number) => {
+    const getContainer = useCallback((column: IRegionColumnItemProps, children: IRegionColumnItemProps[], key: string) => {
         const type = getType(column);
         const Container = type === renderType ? Render : getContainerDom(type)
 
@@ -203,7 +197,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
         />;
     }, [innerChange, innerEvent])
 
-    const getElement = useCallback((column: IRegionColumnItemProps, key: number) => {
+    const getElement = useCallback((column: IRegionColumnItemProps, key: string) => {
         const type = getType(column);
         const Element = type === renderType ? Render : getElementDom(type);
 
@@ -230,7 +224,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
         return hasPermission(params);
     }, [])
 
-    const makeJsx: any = useCallback((columns: IRegionColumnItemProps[], level = 0) => {
+    const makeJsx: any = useCallback((columns: IRegionColumnItemProps[], level?: string) => {
         if (!columns.length) return;
 
         let container = [], children = [];
@@ -240,16 +234,17 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
             const column = columns[i];
 
             if (isContainer(lastColumn) && !isLoad(lastColumn)) break;
+            const key = getOrderKey(level, i)
 
             if (isContainer(column)) {
-                container.push(getContainer(column, children, i + level));
+                container.push(getContainer(column, children, key));
                 children = [];
             } else if (Array.isArray(column)) {
-                children.push(makeJsx(column, ++level));
+                children.push(makeJsx(column, key));
             } else if (!isLoad(column)) {
                 continue;
             } else {
-                children.push(getElement(column, i + level));
+                children.push(getElement(column, key));
             }
         }
 
@@ -264,6 +259,8 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
     const _className = useMemo(() => getClass(keyName, className), [className])
 
     const render = useMemo(() => {
+        if (!Array.isArray(columns)) return
+
         return makeJsx(getResetColumns(columns, innerData, innerRef.current.preData))
     }, [columns, innerData, makeJsx])
 
@@ -272,9 +269,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
             {render}
         </div>
     } else {
-        return <React.Fragment>
-            {render}
-        </React.Fragment>;
+        return <React.Fragment> {render} </React.Fragment>;
     }
 }
 

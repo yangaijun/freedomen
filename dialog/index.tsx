@@ -1,4 +1,4 @@
-import { Modal } from "antd";
+import { Modal, ModalProps } from "antd";
 import Form from "../form";
 import React, { useRef, useCallback, useEffect, useState } from "react";
 import { IDialogProps } from "../config/type";
@@ -6,7 +6,7 @@ import { IDialogProps } from "../config/type";
 const dialogStack: any = {}
 
 const FDialog = (props: IDialogProps) => {
-    const { name, children, onOk, onCancel, noForm, ...restProps } = props
+    const { name, children, onOk, onCancel, noForm, config, ...restProps } = props
 
     const innerForm = useRef<any>()
     const findForm: any = useCallback((content: any) => {
@@ -42,23 +42,22 @@ const FDialog = (props: IDialogProps) => {
         }
     }, [noForm])
 
-    const [modalProps, setModalProps] = useState({ ...restProps })
-    const [modalContent, setModalContent] = useState(() => findForm(children))
+    const [modalProps, setModalProps] = useState<ModalProps>()
+    const [modalContent, setModalContent] = useState<any>()
 
-    const setProps = useCallback((props: any) => {
-        setModalProps({ ...modalProps, ...props })
-    }, [modalProps])
+    const setProps = useCallback((props: ModalProps) => {
+        setModalProps((mps: any) => {
+            return { ...mps, ...props }
+        })
+    }, [])
 
     const hander = useCallback((fn?: Function) => {
         const back = fn && fn();
 
         if (back === undefined) {
-            setProps({
-                ...modalProps,
-                visible: false
-            })
+            setProps({ open: false })
         }
-    }, [modalProps, setProps])
+    }, [setProps])
 
     const handerOnCancel = useCallback(() => {
         hander(onCancel)
@@ -78,16 +77,7 @@ const FDialog = (props: IDialogProps) => {
 
     useEffect(() => {
         setModalContent(findForm(children))
-    }, [children])
-
-    useEffect(() => {
-        if (modalProps.visible === false && modalProps.okButtonProps?.loading) {
-            setModalProps({
-                ...modalProps,
-                okButtonProps: { loading: false }
-            })
-        }
-    }, [modalProps])
+    }, [children, findForm])
 
     useEffect(() => {
         if (name) {
@@ -100,20 +90,18 @@ const FDialog = (props: IDialogProps) => {
     }, [name, setContent, setProps])
 
     useEffect(() => {
-        setModalProps(mProps => {
-            return {
-                ...mProps,
-                footer: restProps.footer
-            }
-        })
-    }, [restProps.footer])
+        if (!modalProps?.open) {
+            setProps({ okButtonProps: { loading: false } })
+        }
+    }, [modalProps?.open, setProps])
 
     return (
         <Modal
             destroyOnClose
+            {...restProps}
+            {...config}
             {...modalProps}
-            {...modalProps.config}
-            onCancel={handerOnCancel} 
+            onCancel={handerOnCancel}
             onOk={handerOnOk}
         >
             {modalContent}
@@ -126,7 +114,7 @@ FDialog.open = (name: string, props?: string | IDialogProps) => {
         const modal = dialogStack[name]
         const { setContent, setProps } = modal
         const newProps = ((typeof props === 'string') ? { title: props } : props)
-        setProps({ visible: true, ...newProps })
+        setProps({ open: true, ...newProps })
 
         return Promise.resolve(setContent)
     }
@@ -137,7 +125,7 @@ FDialog.close = (name: string) => {
         const modal = dialogStack[name]
         const { setProps } = modal
 
-        setProps({ visible: false })
+        setProps({ open: false })
     }
 }
 

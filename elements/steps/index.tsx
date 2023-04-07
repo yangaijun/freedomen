@@ -7,7 +7,6 @@ import MarginLoadingOutlined from "../MarginLoadingOutlined";
 import { names } from "../../config/props";
 
 const ridKeys = [names.labelname, names.valuename]
-const { Step } = Steps;
 
 const types: any = {
     'steps': 'horizontal',
@@ -29,33 +28,36 @@ export default function FSteps(props: IStpesProps) {
 
     const { labelname, valuename } = useOptionValueLabelName(config)
 
-    return useMemo(() => {
+    const menu = useMemo(() => {
         const index = options.findIndex(option => {
             return option[valuename] === item.value
         })
         const current = index === -1 ? 0 : index
 
+        return {
+            current,
+            items: options.map(option => {
+                return {
+                    disabled,
+                    value: option[valuename],
+                    title: option[labelname],
+                    ...option
+                }
+            }),
+            onChange(c: any) {
+                onChange(options[c][valuename])
+            }
+        }
+    }, [options, disabled, item.value, onChange])
+
+    return useMemo(() => {
         return loading ? <MarginLoadingOutlined /> :
             <Steps
-                current={current}
                 className={className}
                 direction={type}
                 style={style}
-                onChange={(c) => {
-                    onChange(options[c][valuename])
-                }}
+                {...menu}
                 {...ridKeysConfig}
-            >
-                {
-                    options.map((option) => (
-                        <Step
-                            disabled={disabled}
-                            {...option}
-                            key={option[valuename]}
-                            title={option[labelname]}
-                        />
-                    ))
-                }
-            </Steps>
-    }, [style, item.value, valuename, type, labelname, onChange, disabled, className, options, loading, ridKeysConfig])
+            />
+    }, [menu, type, style, className, loading, ridKeysConfig])
 }

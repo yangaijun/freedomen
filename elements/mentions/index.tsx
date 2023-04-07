@@ -13,37 +13,37 @@ function FMentions(props: IMentionsProps) {
     const onChange = useChange(props)
     const disabled = useDisabled(props)
     const className = useClassName(props)
-    const { options } = useOptions(props)
+    const { options, loading } = useOptions(props)
     const itemStyles = useItemStyle(props, options)
     const config = useConfig(props)
     const ridKeysConfig = useRidkeyConfig(config, ridKeys)
 
     const { labelname, valuename } = useOptionValueLabelName(config)
 
+    const mentionOptions = useMemo(() => {
+        return options.map((option: any, i: number) => {
+            return { 
+                value: option[valuename],
+                label: option.option || option[labelname],
+                style: itemStyles[i],
+                ...option
+            }
+        })
+    }, [options, itemStyles, valuename, labelname])
+
     return useMemo(() => {
         return <Mentions
             style={style}
-            options={options}
+            options={mentionOptions}
             className={className}
+            loading={loading}
             placeholder={item.placeholder}
             disabled={disabled}
             value={item.value}
             onChange={onChange}
             {...ridKeysConfig}
-        >
-            {options.map((option, index) => (
-                <Mentions.Option
-                    style={itemStyles[index]}
-                    key={option[valuename]}
-                    value={option[valuename]}
-                    disabled={option.disabled}
-                >
-
-                    {option.option || option[labelname]}
-                </Mentions.Option>
-            ))}
-        </Mentions>
-    }, [style, item.value, labelname, valuename, item.placeholder, onChange, disabled, itemStyles, className, options, ridKeysConfig])
+        />
+    }, [style, item.value, mentionOptions, item.placeholder, onChange, disabled, className, ridKeysConfig])
 }
 
 export default FMentions

@@ -78,13 +78,7 @@ export const setColumns = (data: any, columns: any[], index?: number, noStyle = 
                 resetRule(data, lastColumn)
 
                 const children = column.slice(0, column.length - 1)
-                //兼容性特殊处理
-                if (lastColumn.type?.indexOf('inputgroup') === 0) {
-                    lastColumn.config = {
-                        ...lastColumn.config,
-                        compact: true
-                    }
-                }
+
                 resetColumns = setColumns(data, children, index, isNoStyle(lastColumn.type))
 
                 resetColumns.push(lastColumn)

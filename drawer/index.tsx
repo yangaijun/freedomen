@@ -18,7 +18,7 @@ function ridConfig(config = {}, ridkeys: string[]) {
 }
 
 const FDrawer = (props: IDrawerProps) => {
-    const { name, children, onOk, onCancel, noForm, ...restProps } = props
+    const { name, children, onOk, onCancel, noForm, config, ...restProps } = props
 
     const innerForm = useRef<any>()
     const findForm: any = useCallback((content: any) => {
@@ -54,23 +54,22 @@ const FDrawer = (props: IDrawerProps) => {
         }
     }, [noForm])
 
-    const [drawerProps, setDrawerProps] = useState({ ...restProps })
-    const [drawerContent, setModalContent] = useState(() => findForm(children))
+    const [drawerProps, setDrawerProps] = useState<any>()
+    const [drawerContent, setModalContent] = useState<any>()
 
     const setProps = useCallback((props: any) => {
-        setDrawerProps({ ...drawerProps, ...props })
-    }, [drawerProps])
+        setDrawerProps((dps: any) => {
+            return { ...dps, ...props }
+        })
+    }, [])
 
     const hander = useCallback((fn?: Function) => {
         const back = fn && fn();
 
         if (back === undefined) {
-            setProps({
-                ...drawerProps,
-                visible: false
-            })
+            setProps({ open: false })
         }
-    }, [drawerProps, setProps])
+    }, [setProps])
 
     const handerOnCancel = useCallback(() => {
         hander(onCancel)
@@ -90,16 +89,7 @@ const FDrawer = (props: IDrawerProps) => {
 
     useEffect(() => {
         setModalContent(findForm(children))
-    }, [children])
-    
-    useEffect(() => {
-        if (drawerProps.visible === false && drawerProps.okButtonProps?.loading) {
-            setDrawerProps({
-                ...drawerProps,
-                okButtonProps: { loading: false }
-            })
-        }
-    }, [drawerProps])
+    }, [children, findForm])
 
     useEffect(() => {
         if (name) {
@@ -111,11 +101,17 @@ const FDrawer = (props: IDrawerProps) => {
         }
     }, [name, setContent, setProps])
 
-    const cancelText = drawerProps?.cancelText || '取消'
-    const okText = drawerProps?.okText || '确定' 
-    
-    const ridKeysConfig = ridConfig(drawerProps, ridkeys)
- 
+    useEffect(() => {
+        if (!drawerProps?.open) {
+            setProps({ okButtonProps: { loading: false } })
+        }
+    }, [drawerProps?.open, setProps])
+
+    const cancelText = config?.cancelText || drawerProps?.cancelText || '取消'
+    const okText = config?.okText || drawerProps?.okText || '确定'
+
+    const ridKeysConfig = ridConfig(restProps, ridkeys)
+
     return (
         <Drawer
             destroyOnClose
@@ -124,6 +120,7 @@ const FDrawer = (props: IDrawerProps) => {
                 <Space>
                     <Button
                         onClick={handerOnCancel}
+                        {...config?.cancelButtonProps}
                         {...drawerProps?.cancelButtonProps}
                     >
                         {cancelText}
@@ -131,13 +128,15 @@ const FDrawer = (props: IDrawerProps) => {
                     <Button
                         type="primary"
                         onClick={handerOnOk}
+                        {...config?.okButtonProps}
                         {...drawerProps?.okButtonProps}
                     >
                         {okText}
                     </Button>
                 </Space>
-            } 
-            {...ridKeysConfig} 
+            }
+            {...ridKeysConfig}
+            {...drawerProps}
         >
             {drawerContent}
         </Drawer>
@@ -149,7 +148,7 @@ FDrawer.open = (name: string, props?: string | IDrawerProps) => {
         const drawer = drawerStack[name]
         const { setContent, setProps } = drawer
         const newProps = typeof props === 'string' ? { title: props } : props
-        setProps({ visible: true, ...newProps })
+        setProps({ open: true, ...newProps })
 
         return Promise.resolve(setContent)
     }
@@ -160,7 +159,7 @@ FDrawer.close = (name: string) => {
         const drawer = drawerStack[name]
         const { setProps } = drawer
 
-        setProps({ visible: false })
+        setProps({ open: false })
     }
 }
 

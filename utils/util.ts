@@ -184,21 +184,25 @@ export function getSubString(fullText: string, len = 0) {
   return subText;
 }
 //a: {c: {a: 12}}, b: {c: {d: 13}}  =>a: {c: {a: 12, d: 13}}
-function copyBtoA(a: any = {}, b: any = {}) {
-  if (isPlainObject(a) && isPlainObject(b)) {
-    for (let key in b) {
-      if ((key in a) && isPlainObject(a[key]) ) {
-        copyBtoA(a[key], b[key])
-      } else {
-        a[key] = b[key]
-      }
+function copyBtoA(a: any = {}, b: any = {}, coverKeys: string[] | null) {
+  for (let key in b) {
+    if (!coverKeys?.includes(key) && isPlainObject(a[key]) && isPlainObject(b[key])) {
+      copyBtoA(a[key], b[key], coverKeys)
+    } else {
+      a[key] = b[key]
     }
   }
 }
-
-export function objectMerge(target: any, ...source: any) {
-  for(let item of source) {
-    copyBtoA(target, item)
+/**
+ * 
+ * @param target 目标
+ * @param coverKeys 直接覆盖拷贝
+ * @param source 资源
+ * @returns 
+ */
+export function objectMerge(target: any, coverKeys: string[] | null, ...source: any) {
+  for (let item of source) {
+    copyBtoA(target, item, coverKeys)
   }
   return target
 }
@@ -273,7 +277,7 @@ export function resetToOtherObject(data: any = {}, nextData: any = {}) {
 
 export function getStyle(key: string, style?: React.CSSProperties) {
   const [DefaultStyles] = getDefaultStyles()
-  return objectMerge({}, DefaultStyles[key], style)
+  return objectMerge({}, null, DefaultStyles[key], style)
 }
 
 export function getClass(key: string, className: string = '') {
@@ -286,6 +290,10 @@ export function getClass(key: string, className: string = '') {
     clazz += (clazz ? ' ' + className : className)
   }
   return clazz
+}
+
+export function getOrderKey(level = 'k', index: number) {
+  return level + "_" + index
 }
 
 const utils = {

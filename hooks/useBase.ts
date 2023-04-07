@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getClass, getConfig, getOptionStyle, getStyle } from "../utils/base";
-import { defaultFilterVoidText, deleteProp, filterDefaultKey, names, pushProp } from "../config/props";
+import { defaultFilterVoidText, deleteProp, filterDefaultKey, names, pushProp, setType } from "../config/props";
 import util, { getChainValueByString } from "../utils/util";
 
 export function useChange(props: any): (value: any) => void {
@@ -215,11 +215,7 @@ export function useOptions(props: any, innerValue?: any): { options: any[], load
     const [innerOptions, setInnerOptions] = useState<any[]>([])
     const [loading, setLoading] = useState<boolean>(true)
 
-    const useUpdateRef = useRef<any>({
-        isDestory: false,
-        shouldUpdate: null,
-        shouldLoad: undefined
-    })
+    const useUpdateRef = useRef<any>({ shouldUpdate: null, shouldLoad: undefined })
 
     useEffect(() => {
         const resetOptions = (next: any[]) => {
@@ -251,7 +247,6 @@ export function useOptions(props: any, innerValue?: any): { options: any[], load
                 if (useUpdateRef.current.shouldLoad === undefined) {
                     useUpdateRef.current.shouldLoad = false
                 }
-                useUpdateRef.current.isDestory = false
 
                 const promise = new Promise((resolve) => {
                     setLoading(true)
@@ -260,20 +255,12 @@ export function useOptions(props: any, innerValue?: any): { options: any[], load
                 });
 
                 promise.then((options: any) => {
-                    if (!useUpdateRef.current.isDestory) {
-                        setLoading(false)
-                        resetOptions(util.resetOptions(options))
-                    }
+                    setLoading(false)
+                    resetOptions(util.resetOptions(options))
                 })
             }
         }
     }, [prop, innerOptions, value, preData, data, options, innerValue])
-
-    useEffect(() => {
-        return () => {
-            useUpdateRef.current.isDestory = true
-        }
-    }, [])
 
     return {
         options: innerOptions,
@@ -315,6 +302,7 @@ export function useOptionIOValue(config: any, options: any[], value: any): { inn
                 }
                 return next
             }
+
             if (Array.isArray(value)) {
                 innerValue = value.map(el => {
                     return util.isPlainObject(el) ? el[valuename] : el
@@ -334,48 +322,92 @@ export function useOptionIOValue(config: any, options: any[], value: any): { inn
     }, [value, valuename, optionvalue, options])
 }
 
-export function useListComponent(innerRef: any, setInnerData: Function, onChange?: Function, onEvent?: Function, data?: any[]) {
-    useEffect(() => {
-        const nextData: any[] = []
-        if (data) {
-            data.forEach((el: any, index: number) => {
-                const item = {
-                    $key: util.getUUID(),
-                    ...el,
-                    $index: index,
+export function useListComponent(onChange?: Function, onEvent?: Function, data?: any[], name?: string) {
+    const [innerData, setInnerData] = useState<any[]>([])
+    const innerRef = useRef<any>({ data: [] })
+
+    const getResetData = useCallback((data: any[] = [], $pIndexs?: number[], pIndex?: number) => {
+        const newData: any[] = []
+        for (let i = 0; i < data.length; i++) {
+            if (Array.isArray(data[i])) {
+                newData.push(getResetData(data[i]))
+            } else {
+                const item = { ...data[i], $index: i }
+                if (!item.key) {
+                    item.key = util.getUUID()
                 }
-                nextData.push(item)
-            })
-        }
-        innerRef.current.data = nextData
-        setInnerData(innerRef.current.data)
-    }, [data])
-
-    const innerEvent = useCallback((params: any) => {
-        if (params.prop === deleteProp || params.prop === pushProp) {
-            const { data } = innerRef.current
-            const nextData = [...data]
-
-            if (params.prop === deleteProp) {
-                nextData.splice(params.row.$index, 1)
-                nextData.forEach((el: any, index: number) => {
-                    el.$index = index
-                })
-                innerRef.current.data = nextData
-            } else if (params.prop === pushProp) {
-                nextData.push({
-                    $index: nextData.length,
-                    $key: util.getUUID()
-                })
-                innerRef.current.data = nextData
+                if (pIndex !== undefined) {
+                    if ($pIndexs) {
+                        item.$pIndexs = [...$pIndexs, pIndex]
+                    } else {
+                        item.$pIndexs = [pIndex]
+                    }
+                }
+                if (Array.isArray(data[i].children)) {
+                    item.children = getResetData(data[i].children, item.$pIndexs, i)
+                }
+                newData.push(item)
             }
-
-            onChange && onChange(innerRef.current.data)
-            setInnerData(innerRef.current.data)
-        } else {
-            return onEvent && onEvent(params)
         }
+        return newData;
+    }, [])
+
+    const setNextData = useCallback((nextData: any) => {
+        innerRef.current.data = nextData
+        setInnerData(nextData)
+        onEvent && onEvent({ type: setType, value: nextData })
     }, [onEvent])
 
-    return { innerEvent }
+    useEffect(() => {
+        const nextData = getResetData(data)
+
+        setNextData(nextData)
+
+    }, [data, setNextData, getResetData])
+
+    const innerChange = useCallback((data: any) => {
+        const nextData = [...innerRef.current.data]
+        let currentData: any = nextData
+        if (data.$pIndexs) {
+            for (let index in data.$pIndexs) {
+                if (Array.isArray(currentData)) {
+                    currentData = currentData[index as any]
+                } else if (Array.isArray(currentData.children)) {
+                    currentData = currentData.children[index]
+                }
+            }
+        }
+        if (Array.isArray(currentData)) {
+            currentData[data.$index] = data
+        } else if (Array.isArray(currentData.children)) {
+            currentData.children[data.$index] = data
+        }
+
+        setNextData(nextData)
+       
+    }, [name])
+
+    //table 有层级时删除不正确，不要使用
+    const innerEvent = useCallback((params: any) => {
+        if (params.prop === deleteProp || params.prop === pushProp) {
+            let nextData = [...innerRef.current.data]
+            if (params.prop === deleteProp) {
+                nextData.splice(params.row.$index, 1)
+                nextData = nextData.map((el: any, index: number) => {
+                    //没变化，引用
+                    if (el.$index === index) return el
+                    //需要更新换地址
+                    return { ...el, $index: index }
+                })
+            } else if (params.prop === pushProp) {
+                nextData.push({ $index: nextData.length, key: util.getUUID() })
+            }
+
+            setNextData(nextData)
+        }
+
+        return onEvent && onEvent(params)
+    }, [onEvent])
+
+    return { innerData, innerChange, innerEvent }
 }

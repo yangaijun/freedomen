@@ -3,6 +3,7 @@ import { Button } from "antd";
 import { IButtonProps } from "../../config/type";
 import { getOriginalType } from "../../utils/base";
 import { useEvent, useStyle, useClassName, useDisabled, useFilter, useConfig } from "../../hooks/useBase";
+import { clickType } from "../../config/props";
 
 const types: any = {
     'button-primary': 'primary',
@@ -29,7 +30,7 @@ function FButton(props: IButtonProps) {
             style={style}
             className={className}
             disabled={disabled}
-            onClick={_ => onEvent('click', item.value)}
+            onClick={_ => onEvent(clickType, item.value)}
             {...config}
         >
             {filter}

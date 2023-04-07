@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { getSubString } from "../../utils/util";
 import { ITextProps } from "../../config/type";
 import { useClassName, useStyle, useFilter, useEvent, useConfig, useRidkeyConfig } from "../../hooks/useBase";
+import { clickType } from "../../config/props";
 
 const defaultDomName = 'span'
 const ridKeys = ['tooltip', 'maxlength'];
@@ -43,7 +44,7 @@ function FText(props: ITextProps) {
                 style,
                 className,
                 onClick: () => {
-                    onEvent('click', item.value)
+                    onEvent(clickType, item.value)
                 },
                 ...ridKeysConfig
             },

@@ -3,13 +3,13 @@ import { Form } from 'antd'
 import Region from '../region'
 import { getClass, getStyle, objectMerge, resetToOtherObject } from '../utils/util';
 import { setColumns } from './util';
-import { isRenderComponent, resetProp, submitEventType, submitProp } from '../config/props';
+import { changeType, isRenderComponent, resetProp, submitEventType, submitProp } from '../config/props';
 import { getDefaultConfigs } from '../config/config';
-import { IFormProps } from '../config/type';
+import { FData, IFormColumnsType, IFormProps } from '../config/type';
 
 const keyName = 'Form'
 
-function getSubmitItem(innerColumns: any[]): any {
+function getSubmitItem(innerColumns: IFormColumnsType[]): any {
     for (let item of innerColumns) {
         if (Array.isArray(item)) {
             const result = getSubmitItem(item)
@@ -47,34 +47,29 @@ const FForm: React.ForwardRefRenderFunction<FFormRef, IFormProps> = (props, ref)
     const { className, style, data, columns, onSubmit, onEvent, onChange, config } = props
 
     const [validateField, setValidateField] = useState<string[] | null>(null)
-    const [submitParams, setSubmitParams] = useState<any>()
-    const innerRef = useRef({ data: {}, submitColumn: null })
+    const innerRef = useRef<any>({ data: {}, submitInfo: { column: undefined, params: undefined } })
     const [form] = Form.useForm()
     const region = useRef<any>()
 
     const innerColumns = useMemo(() => {
+        if (!Array.isArray(columns)) return []
+
         const nextColumns = setColumns(innerRef.current.data, columns)
-        innerRef.current.submitColumn = getSubmitItem(nextColumns)
+        innerRef.current.submitInfo.column = getSubmitItem(nextColumns)
 
         return nextColumns
     }, [columns])
 
-    const submit = useCallback(() => {
-        form.submit()
+    const reset = useCallback(() => {
+        form.resetFields()
+        region.current.reset(null)
     }, [form])
 
-    const reset = useCallback(() => {
-        region.current.reset(null)
-        form.resetFields()
-    }, [form])
+    const submit = useCallback(() => form.submit(), [form])
 
     useImperativeHandle(ref, () => {
-        return {
-            submit,
-            reset,
-            set: region.current.set,
-            get: region.current.get
-        }
+        const { get, set } = region.current || {}
+        return { submit, reset, set, get }
     })
 
     useEffect(() => {
@@ -88,42 +83,38 @@ const FForm: React.ForwardRefRenderFunction<FFormRef, IFormProps> = (props, ref)
     }, [form, validateField])
 
     const innerEvent = useCallback((params: any) => {
-        if (params.type === 'change' && params.prop) {
+        if (params.type === changeType && params.prop) {
             setValidateField([params.prop])
-        } else if (isOnSubmit(params, innerRef.current.submitColumn)) {
-            setSubmitParams(params)
+        } else if (isOnSubmit(params, innerRef.current.submitInfo.column)) {
+            innerRef.current.submitInfo.params = params
             submit()
         } else if (params.prop?.includes(resetProp)) {
-            //resetProp region 已经重置过数据了
             form.resetFields()
         }
 
         return onEvent && onEvent(params)
     }, [form, submit, onEvent])
 
-    const innerChange = useCallback((data: any) => {
+    const innerChange = useCallback((data: FData) => {
         resetToOtherObject(innerRef.current.data, data)
         onChange && onChange(data)
     }, [onChange])
 
     const onFinish = useCallback(() => {
-        const back = onSubmit && onSubmit(innerRef.current.data, submitParams);
-        if (back === null) {
-            reset()
-        }
-    }, [onSubmit, reset, submitParams])
-
-    const defalutLabelCol = useMemo(() => {
-        if (!config?.layout) {
-            return { span: 4 }
-        }
-    }, [config?.layout])
+        const back = onSubmit && onSubmit(
+            region.current.get(),
+            innerRef.current.submitInfo.params
+        );
+        //onSubmit return null 可以重置表单
+        if (back === null) { reset() }
+    }, [onSubmit, reset])
 
     const innerConfig = useMemo(() => {
         const [DefaultConfigs] = getDefaultConfigs()
 
         return objectMerge(
             {},
+            ['labelCol', 'wrapperCol'],
             DefaultConfigs.Form,
             config
         )
@@ -135,19 +126,12 @@ const FForm: React.ForwardRefRenderFunction<FFormRef, IFormProps> = (props, ref)
     return <Form
         form={form}
         onFinish={onFinish}
-        labelCol={defalutLabelCol}
         className={_className}
         style={_style}
         {...innerConfig}
         validateTrigger="none"
     >
-        <Region
-            data={data}
-            ref={region}
-            columns={innerColumns}
-            onEvent={innerEvent}
-            onChange={innerChange}
-        />
+        <Region data={data} ref={region} columns={innerColumns} onEvent={innerEvent} onChange={innerChange} />
     </Form>
 }
 

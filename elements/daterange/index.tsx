@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { getOriginalType } from "../../utils/base";
 import { DatePicker } from "antd";
-import moment from 'moment'
+import dayjs from 'dayjs'
 import { IDateRangeProps } from "../../config/type";
 import { useStyle, useClassName, useDisabled, useChange, useConfig } from "../../hooks/useBase";
 
@@ -24,7 +24,7 @@ function parseValue(value: null | any[]) {
 
 function stringfiyValue(value: null | any[]) {
     if (value) {
-        return [value[0] ? moment(value[0]) : null, value[1] ? moment(value[1]) : null];
+        return [value[0] ? dayjs(value[0]) : null, value[1] ? dayjs(value[1]) : null];
     }
     return value
 }

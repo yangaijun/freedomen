@@ -1,8 +1,8 @@
 import React, { useMemo } from "react";
-import { Button, Dropdown, Menu } from "antd";
+import { Button, Dropdown } from "antd";
 import { getOriginalType } from "../../utils/base";
-import { names } from "../../config/props";
-import { useStyle, useClassName, useDisabled, useEvent, useOptions, useConfig, useRidkeyConfig, useItemStyle, useOptionValueLabelName } from "../../hooks/useBase";
+import { clickType, names } from "../../config/props";
+import { useStyle, useClassName, useDisabled, useEvent, useOptions, useConfig, useRidkeyConfig, useOptionValueLabelName } from "../../hooks/useBase";
 import { DownOutlined } from "@ant-design/icons";
 import { IDropdownProps } from "../../config/type";
 import MarginLoadingOutlined from "../MarginLoadingOutlined";
@@ -24,8 +24,6 @@ function FDropdown(props: IDropdownProps) {
     const disabled = useDisabled(props)
     const { options, loading } = useOptions(props)
 
-    const itemStyles = useItemStyle(props, options)
-
     const config = useConfig(props)
     const ridKeysConfig = useRidkeyConfig(config, ridKeys)
 
@@ -35,58 +33,44 @@ function FDropdown(props: IDropdownProps) {
     const dType = types[type]
 
     const menu = useMemo(() => {
-        if (loading) {
-            return <Menu>
-                <Menu.Item >
-                    <MarginLoadingOutlined />
-                </Menu.Item>
-            </Menu>
+        return loading ? {
+            items: [{ key: 'loading', label: <MarginLoadingOutlined /> }]
+        } : {
+            items: options.map((option, key) => {
+                return {
+                    key,
+                    label: option[labelname],
+                    ...option
+                }
+            }),
+            onClick({ key }: any) {
+                onEvent(clickType, options[Number(key)][valuename]);
+            }
         }
-        return <Menu onClick={({ key }: { key: any }) => {
-            onEvent('click', options[key][valuename]);
-        }}>
-            {options.map((option, index) => {
-                return (
-                    <Menu.Item
-                        key={index}
-                        disabled={option.disabled}
-                        style={itemStyles[index]}
-                    >
-                        {option[labelname]}
-                    </Menu.Item>
-                );
-            })}
-        </Menu>
-    }, [options, itemStyles, loading, labelname, valuename, onEvent])
+    }, [options, loading, labelname, valuename])
 
     const children = useMemo(() => {
         const itemText = <span>{item.text || DEFAULT_TEXT} <DownOutlined /></span>
         const { content, size } = config
+
         if (content) return content
 
-        if (dType === types['dropdown-a']) {
-            return <a onClick={e => e.preventDefault()} > {itemText} </a>
-        } else if (dType === types['dropdown-primary']) {
-            return <Button size={size} type="primary">
-                {itemText}
-            </Button>
-        } else {
-            return <Button size={size} >
-                {itemText}
-            </Button>
-        }
+        const bType: any = dType === types['dropdown-a'] ? 'link' : dType === types['dropdown-primary'] ? 'primary' : undefined
+
+        return <Button size={size} type={bType} > {itemText} </Button>
     }, [dType, item.text, config])
 
     return useMemo(() => {
         return <Dropdown
-            overlay={menu}
+            menu={menu}
             style={style}
             className={className}
             disabled={disabled}
-            {...ridKeysConfig} >
+            {...ridKeysConfig}
+        >
             {children}
         </Dropdown>
-    }, [menu, style, className, disabled, ridKeysConfig, children])
+    }, [menu, style, className, disabled, options, onEvent, ridKeysConfig, valuename, children])
 }
 
 export default FDropdown
