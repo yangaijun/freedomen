@@ -15,6 +15,12 @@ export type IRenderType = IRenderParams
 
 export type FData = Record<string, any>
 
+//触发 onchange 事件的方式
+export enum EChangeEventType {
+    BLUR = 'blur',
+    INPUT = 'input' 
+}
+
 export interface IRenderParams extends IDefaultParams {
     data: FData,
     $base: {

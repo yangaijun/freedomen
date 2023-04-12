@@ -95,6 +95,7 @@ export const setColumns = (data: any, columns: any[], index?: number, noStyle = 
             }
         }
     });
+    
     return newColumns;
 }
 

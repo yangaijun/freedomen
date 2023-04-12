@@ -1,36 +1,52 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getClass, getConfig, getOptionStyle, getStyle } from "../utils/base";
-import { defaultFilterVoidText, deleteProp, filterDefaultKey, names, pushProp, setType } from "../config/props";
+import { defaultFilterVoidText, deleteProp, filterDefaultKey, names, pushProp } from "../config/props";
 import util, { getChainValueByString } from "../utils/util";
+import useUpdateEffect from "./useUpdateEffect";
 
 export function useChange(props: any): (value: any) => void {
     const { onChange, item } = props
+    const innerRef = useRef({ onChange, item })
 
-    return (value) => {
-        if (onChange && util.notEquals(getChainValueByString(item.$data, item.prop), value)) {
-            onChange({
+    useEffect(() => {
+        innerRef.current.onChange = onChange
+        innerRef.current.item = item
+    }, [onChange, item])
+
+    return useMemo(() => {
+        const { onChange, item } = innerRef.current
+
+        return (value) => {
+            onChange && onChange({
                 prop: item.prop,
                 value: value,
                 column: item
             })
         }
-    }
+    }, [])
 }
 
 export function useEvent(props: any): (type: string, value: any) => void {
-    const { onEvent, item, item: { prop } } = props
-    const ref = useRef({ item: { ...item } })
+    const { onEvent, item } = props
+    const innerRef = useRef({ onEvent, item })
+
+    useEffect(() => {
+        innerRef.current.onEvent = onEvent
+        innerRef.current.item = item
+    }, [onEvent, item])
 
     return useMemo(() => {
+        const { onEvent, item } = innerRef.current
+
         return (type, value) => {
             onEvent && onEvent({
-                prop,
+                prop: item.prop,
                 type,
                 value,
-                column: ref.current.item
+                column: item
             })
         }
-    }, [prop, onEvent])
+    }, [])
 }
 
 export function useDisabled(props: any): boolean | undefined {
@@ -46,7 +62,7 @@ export function useDisabled(props: any): boolean | undefined {
 
     const [innerDisabled, setInnerDisabled] = useState<boolean>(() => makeDisabled())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeDisabled()
 
         if (util.notEquals(innerDisabled, next)) {
@@ -72,7 +88,7 @@ export function useClassName(props: any): string | undefined {
 
     const [innerClassName, setInnerClassName] = useState<string>(() => makeClassName())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeClassName()
         if (util.notEquals(innerClassName, next)) {
             setInnerClassName(next)
@@ -103,7 +119,7 @@ export function useStyle(props: any): React.CSSProperties {
 
     const [innerStyle, setInnerStyle] = useState<React.CSSProperties>(() => makeStyle())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeStyle()
         if (util.notEquals(innerStyle, next)) {
             setInnerStyle(next)
@@ -124,7 +140,7 @@ export function useItemStyle(props: any, options: any[]): React.CSSProperties[] 
 
     const [innerStyles, setInnerStyles] = useState<React.CSSProperties[]>(() => makeStyles())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeStyles()
         if (util.notEquals(innerStyles, next)) {
             setInnerStyles(next)
@@ -156,7 +172,7 @@ export function useFilter(props: any): string | undefined {
 
     const [innerFilter, setInnerFilter] = useState(() => makeFilter())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeFilter()
         if (util.notEquals(innerFilter, next)) {
             setInnerFilter(next)
@@ -179,7 +195,7 @@ export function useConfig(props: any): any {
 
     const [innerConfig, setInnerConfig] = useState(() => makeConfig())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeConfig()
         if (util.notEquals(innerConfig, next)) {
             setInnerConfig(next)
@@ -191,7 +207,7 @@ export function useConfig(props: any): any {
 
 export function useRidkeyConfig(config: any, ridKeys: any[] = []): any {
     const makeRidkeyConfig = useCallback(() => {
-        let next = { ...config }
+        const next = { ...config }
         ridKeys.forEach(key => {
             delete next[key];
         });
@@ -200,7 +216,7 @@ export function useRidkeyConfig(config: any, ridKeys: any[] = []): any {
 
     const [innerRidkeyConfig, setInnerRidkeyConfig] = useState(() => makeRidkeyConfig())
 
-    useEffect(() => {
+    useUpdateEffect(() => {
         let next = makeRidkeyConfig()
         if (util.notEquals(innerRidkeyConfig, next)) {
             setInnerRidkeyConfig(next)
@@ -212,8 +228,13 @@ export function useRidkeyConfig(config: any, ridKeys: any[] = []): any {
 
 export function useOptions(props: any, innerValue?: any): { options: any[], loading: boolean } {
     const { item: { prop, options, $data: data, value, $preData: preData } } = props
-    const [innerOptions, setInnerOptions] = useState<any[]>([])
-    const [loading, setLoading] = useState<boolean>(true)
+    const [innerOptions, setInnerOptions] = useState<any[]>(() => {
+        if (typeof options !== 'function') {
+            return util.resetOptions(options)
+        }
+        return []
+    })
+    const [loading, setLoading] = useState<boolean>(false)
 
     const useUpdateRef = useRef<any>({ shouldUpdate: null, shouldLoad: undefined })
 
@@ -225,7 +246,6 @@ export function useOptions(props: any, innerValue?: any): { options: any[], load
         }
 
         if (typeof options !== 'function') {
-            setLoading(false)
             resetOptions(util.resetOptions(options))
         } else {
             const shouldUpdate = (callback: (preData: any, currentData: any) => boolean) => {
@@ -322,10 +342,7 @@ export function useOptionIOValue(config: any, options: any[], value: any): { inn
     }, [value, valuename, optionvalue, options])
 }
 
-export function useListComponent(onChange?: Function, onEvent?: Function, data?: any[], name?: string) {
-    const [innerData, setInnerData] = useState<any[]>([])
-    const innerRef = useRef<any>({ data: [] })
-
+export function useListComponent(onChange?: Function, onEvent?: Function, data?: any[]) {
     const getResetData = useCallback((data: any[] = [], $pIndexs?: number[], pIndex?: number) => {
         const newData: any[] = []
         for (let i = 0; i < data.length; i++) {
@@ -333,9 +350,8 @@ export function useListComponent(onChange?: Function, onEvent?: Function, data?:
                 newData.push(getResetData(data[i]))
             } else {
                 const item = { ...data[i], $index: i }
-                if (!item.key) {
-                    item.key = util.getUUID()
-                }
+                if (!item.key) { item.key = util.getUUID() }
+
                 if (pIndex !== undefined) {
                     if ($pIndexs) {
                         item.$pIndexs = [...$pIndexs, pIndex]
@@ -349,20 +365,24 @@ export function useListComponent(onChange?: Function, onEvent?: Function, data?:
                 newData.push(item)
             }
         }
+
         return newData;
     }, [])
+
+    const [innerData, setInnerData] = useState<any[]>(() => getResetData(data))
+    const innerRef = useRef<any>({ data })
 
     const setNextData = useCallback((nextData: any) => {
         innerRef.current.data = nextData
         setInnerData(nextData)
-        onEvent && onEvent({ type: setType, value: nextData })
-    }, [onEvent])
+        onChange && onChange(nextData)
+    }, [onChange])
 
-    useEffect(() => {
-        const nextData = getResetData(data)
-
-        setNextData(nextData)
-
+    useUpdateEffect(() => {
+        if (data && innerRef.current.data !== data) {
+            const nextData = getResetData(data)
+            setNextData(nextData)
+        }
     }, [data, setNextData, getResetData])
 
     const innerChange = useCallback((data: any) => {
@@ -384,8 +404,7 @@ export function useListComponent(onChange?: Function, onEvent?: Function, data?:
         }
 
         setNextData(nextData)
-       
-    }, [name])
+    }, [])
 
     //table 有层级时删除不正确，不要使用
     const innerEvent = useCallback((params: any) => {

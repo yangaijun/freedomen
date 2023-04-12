@@ -1,15 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useClassName, useOptions, useStyle, useChange, useDisabled, useConfig, useRidkeyConfig } from "../../hooks/useBase";
 import { AutoComplete } from "antd";
-import { IAutoCompleteProps } from "../../config/type";
+import { EChangeEventType, IAutoCompleteProps } from "../../config/type";
 import MarginLoadingOutlined from "../MarginLoadingOutlined";
+
 const ridKeys = ['changeEventType']
-
-const changeEventTypes: any = {
-    BLUR: 'blur',
-    INPUT: 'input' //default
-}
-
+ 
 function FAutoComplete(props: IAutoCompleteProps) {
     const { item } = props
 
@@ -23,7 +19,7 @@ function FAutoComplete(props: IAutoCompleteProps) {
    
     const config = useConfig(props)
     const ridKeysConfig = useRidkeyConfig(config, ridKeys)
-    const { changeEventType = changeEventTypes.INPUT } = config
+    const { changeEventType = EChangeEventType.INPUT } = config
  
     const { options, loading } = useOptions(props, value)
 
@@ -45,7 +41,7 @@ function FAutoComplete(props: IAutoCompleteProps) {
             className={className}
             dropdownRender={dropdownRender}
             onBlur={() => {
-                if (changeEventType === changeEventTypes.BLUR && innerRef.current.value !== null) {
+                if (changeEventType === EChangeEventType.BLUR && innerRef.current.value !== null) {
                     onChange(value)
                 }
             }}
@@ -57,7 +53,7 @@ function FAutoComplete(props: IAutoCompleteProps) {
                 innerRef.current.value = value
                 setValue(value)
 
-                if (changeEventType === changeEventTypes.INPUT) {
+                if (changeEventType === EChangeEventType.INPUT) {
                     onChange(value)
                 }
             }}

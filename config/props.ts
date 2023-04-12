@@ -73,8 +73,6 @@ export const tableSorterType = 'sorter'
 export const tableSelectionProp = '$selection'
 //custome Type
 export const customTypeProp = '$customType'
-//初始化数据，组件内部对数据重新设置
-export const setType = 'set'
 //change事件名
 export const changeType = 'change'
 //click 事件名

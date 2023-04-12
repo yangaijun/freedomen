@@ -8,7 +8,7 @@ import { hasNameProp, isRenderComponent } from '../config/props';
 function FFormList(props: any) {
     const { data, name, columns = [], onEvent, onChange } = props
 
-    const { innerData, innerChange, innerEvent } = useListComponent(onChange, onEvent, data, name)
+    const { innerData, innerChange, innerEvent } = useListComponent(onChange, onEvent, data)
 
     const formColumns = useMemo(() => {
         return innerData.map((data: any) => (

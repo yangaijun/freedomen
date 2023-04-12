@@ -2,11 +2,12 @@ import React, { useCallback, useEffect, useImperativeHandle, forwardRef, useMemo
 import Render, { renderType, renderContainerType, customRenders } from '../render'
 import { FData, IEventParams, IRegionColumnItemProps, IRegionProps } from '../config/type';
 import { CONTAINER_NAMES, getContainerDom } from '../containers';
-import { changeType, customTypeProp, isRenderComponent, resetProp, setType } from '../config/props';
+import { changeType, customTypeProp, isRenderComponent, resetProp } from '../config/props';
 import util, { getChainValueByString, getClass, getOrderKey, getStyle, isUndefined, resetToOtherObject, setChainValueByString } from '../utils/util';
 import { hasPermission } from '../config/permission';
 import { getElementDom } from '../elements';
 import { getFullType } from '../utils/base';
+import useUpdateEffect from '../hooks/useUpdateEffect';
 
 const keyName = 'Region'
 
@@ -138,9 +139,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
     }, [changeInnerData, reset])
 
     const innerEvent = useCallback((params: IEventParams) => {
-        if (params.type === setType) {
-            innerChange(params, setType)
-        } else if (isResetProp(params.prop)) {
+        if (isResetProp(params.prop)) {
             reset(params);
         } else {
             params.row = cloneData(innerRef.current.data);
@@ -148,13 +147,13 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
         }
     }, [reset, handlerEvent])
 
-    const innerChange = useCallback((params: IEventParams, type = changeType) => {
+    const innerChange = useCallback((params: IEventParams) => {
         if (params.prop) {
             const nextData = cloneData(innerRef.current.data)
             setChainValueByString(nextData, params.prop, params.value)
             const nextParams = {
                 ...params,
-                type,
+                type: changeType,
                 row: cloneData(nextData)
             }
             changeInnerData(nextData, nextParams)
@@ -172,8 +171,8 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
     useEffect(() => {
         innerRef.current.onEvent = onEvent
     }, [onEvent])
-
-    useEffect(() => {
+ 
+    useUpdateEffect(() => {
         data && setPreDataAndCurrentData(data)
     }, [data, setPreDataAndCurrentData])
 
@@ -263,7 +262,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
 
         return makeJsx(getResetColumns(columns, innerData, innerRef.current.preData))
     }, [columns, innerData, makeJsx])
-
+ 
     if ((_style && Object.keys(_style).length) || _className) {
         return <div style={style} className={_className}>
             {render}

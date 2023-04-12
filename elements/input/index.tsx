@@ -2,14 +2,9 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Input } from 'antd';
 import { useChange, useClassName, useConfig, useDisabled, useEvent, useRidkeyConfig, useStyle } from '../../hooks/useBase';
 import { getOriginalType } from '../../utils/base';
-import { IInputProps } from '../../config/type';
+import { EChangeEventType, IInputProps } from '../../config/type';
 
 const ridKeys = ['changeEventType']
-
-const changeEventTypes: any = {
-    BLUR: 'blur',
-    INPUT: 'input' //default
-}
 
 const types: any = {
     'input': Input,
@@ -23,7 +18,7 @@ function FInput(props: IInputProps) {
 
     const [value, setValue] = useState<string>()
     const [blurValue, setBlurValue] = useState<string | null>(null)
-    const innerRef = useRef<any>({ value: null })
+    const innerRef = useRef<any>({ value: null, isFocus: false })
     const disabled = useDisabled(props)
     const className = useClassName(props)
     const style = useStyle(props)
@@ -37,7 +32,7 @@ function FInput(props: IInputProps) {
     const type = getOriginalType(item)
     const Element = types[type] || Input;
 
-    const { changeEventType = changeEventTypes.INPUT } = config
+    const { changeEventType = EChangeEventType.INPUT } = config
 
     useEffect(() => {
         if (item.value !== innerRef.current.value) {
@@ -58,12 +53,12 @@ function FInput(props: IInputProps) {
                 innerRef.current.value = value
 
                 setValue(value)
-                if (changeEventType === changeEventTypes.INPUT) {
+                if (changeEventType === EChangeEventType.INPUT || !innerRef.current.isFocus) {
                     onChange(value);
                 }
             },
             onPressEnter: ({ target: { value } }: any) => {
-                if (changeEventType === changeEventTypes.BLUR) {
+                if (changeEventType === EChangeEventType.BLUR) {
                     onChange(value)
                     setBlurValue(value)
                 } else {
@@ -80,7 +75,9 @@ function FInput(props: IInputProps) {
     }, [type, changeEventType, onEvent, onChange])
 
     const onBlur = useCallback(() => {
-        if (changeEventType === changeEventTypes.BLUR && innerRef.current.value !== null) {
+        innerRef.current.isFocus = false
+
+        if (changeEventType === EChangeEventType.BLUR && innerRef.current.value !== null) {
             onChange(value)
         }
     }, [changeEventType, value, onChange])
@@ -90,6 +87,9 @@ function FInput(props: IInputProps) {
             style={style}
             value={value}
             onBlur={onBlur}
+            onFocus={() => {
+                innerRef.current.isFocus = true
+            }}
             disabled={disabled}
             className={className}
             placeholder={item.placeholder}
