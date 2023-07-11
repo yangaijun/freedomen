@@ -1,7 +1,7 @@
 import util from '../utils/util'
 
 const notEmpty = {
-    message: '不能为空',
+    message: '此为必填项',
     regular: ({ value }: any) => {
         if (value instanceof Array) return value.length !== 0;
         else if (util.isPlainObject(value)) return Object.keys(value).length !== 0;

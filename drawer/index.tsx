@@ -16,9 +16,12 @@ function ridConfig(config = {}, ridkeys: string[]) {
     })
     return newConfig
 }
-
-const FDrawer = (props: IDrawerProps) => {
-    const { name, children, onOk, onCancel, noForm, config, ...restProps } = props
+interface IFDrawerProps extends IDrawerProps {
+    cancelText?: string;
+    okText?: string;
+}
+const FDrawer = (props: IFDrawerProps) => {
+    const { name, children, onOk, onCancel, noForm, cancelText, okText, config, ...restProps } = props
 
     const innerForm = useRef<any>()
     const findForm: any = useCallback((content: any) => {
@@ -107,8 +110,8 @@ const FDrawer = (props: IDrawerProps) => {
         }
     }, [drawerProps?.open, setProps])
 
-    const cancelText = config?.cancelText || drawerProps?.cancelText || '取消'
-    const okText = config?.okText || drawerProps?.okText || '确定'
+    const icancelText = cancelText || config?.cancelText || drawerProps?.cancelText || '取消'
+    const iokText = okText || config?.okText || drawerProps?.okText || '确定'
 
     const ridKeysConfig = ridConfig(restProps, ridkeys)
 
@@ -123,7 +126,7 @@ const FDrawer = (props: IDrawerProps) => {
                         {...config?.cancelButtonProps}
                         {...drawerProps?.cancelButtonProps}
                     >
-                        {cancelText}
+                        {icancelText}
                     </Button>
                     <Button
                         type="primary"
@@ -131,7 +134,7 @@ const FDrawer = (props: IDrawerProps) => {
                         {...config?.okButtonProps}
                         {...drawerProps?.okButtonProps}
                     >
-                        {okText}
+                        {iokText}
                     </Button>
                 </Space>
             }

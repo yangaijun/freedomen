@@ -59,6 +59,8 @@ export const resetProp = '$reset'
 export const submitProp = '$submit'
 //list delete prop
 export const deleteProp = '$delete'
+//list delete confirm
+export const deleteTipProp = '$delete-confirm'
 //list add prop
 export const pushProp = '$push' 
 //一些输入组件可以直接触发表单提交的类型可以，如input 的 pressEnter 等, submitEventType = "pressEnter" / ["pressEnter"]
@@ -82,6 +84,8 @@ export const defaultPage = {
   pageNo: 1,
   pageSize: 10
 }
+//options触发防抖等待时间
+export const defaultDebounceWait = 280
 //是否被Render处理，复制自动注入数据、事件
 export const isRenderComponent = '__isRenderComponent'
 //formList 使用

@@ -39,7 +39,7 @@ function isOnSubmit(params: any, columnItem: any) {
 export interface FFormRef {
     submit: () => void;
     reset: () => void;
-    set: (prop: string, callback: Function | any) => void,
+    set: (prop: string | FData, callback?: Function | any) => void,
     get: (prop?: string) => any,
 }
 

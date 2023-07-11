@@ -69,6 +69,7 @@ function FTable(props: ITableProps) {
                         return { disabled }
                     }
                 },
+                type: config.selectionType,
                 ...defaultConfig.rowSelection,
                 selectedRowKeys: selecteds,
                 onChange: selectChange

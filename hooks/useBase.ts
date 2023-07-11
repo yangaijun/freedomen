@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getClass, getConfig, getOptionStyle, getStyle } from "../utils/base";
-import { defaultFilterVoidText, deleteProp, filterDefaultKey, names, pushProp } from "../config/props";
-import util, { getChainValueByString } from "../utils/util";
-import useUpdateEffect from "./useUpdateEffect";
+import { defaultDebounceWait, defaultFilterVoidText, deleteProp, deleteTipProp, filterDefaultKey, names, pushProp } from "../config/props";
+import util, { debounce } from "../utils/util";
+import useUpdateEffect from "./useUpdateEffect"; 
+import { Modal } from "antd";
 
 export function useChange(props: any): (value: any) => void {
     const { onChange, item } = props
@@ -227,59 +228,71 @@ export function useRidkeyConfig(config: any, ridKeys: any[] = []): any {
 }
 
 export function useOptions(props: any, innerValue?: any): { options: any[], loading: boolean } {
-    const { item: { prop, options, $data: data, value, $preData: preData } } = props
+    const { item: { prop, options, $data: data, value, $preData: preData, config } } = props
+
+    const [loading, setLoading] = useState<boolean>(false)
     const [innerOptions, setInnerOptions] = useState<any[]>(() => {
         if (typeof options !== 'function') {
             return util.resetOptions(options)
         }
         return []
     })
-    const [loading, setLoading] = useState<boolean>(false)
-
+   
     const useUpdateRef = useRef<any>({ shouldUpdate: null, shouldLoad: undefined })
 
+    const debounceWait = config?.debounceWait || defaultDebounceWait
+
+    const debounceFn = useCallback(
+        debounce((callback: Function) => {
+            callback()
+        }, debounceWait),
+        [debounceWait]
+    )
+
     useEffect(() => {
-        const resetOptions = (next: any[]) => {
-            if (util.notEquals(innerOptions, next)) {
-                setInnerOptions(next)
-            }
-        }
-
-        if (typeof options !== 'function') {
-            resetOptions(util.resetOptions(options))
-        } else {
-            const shouldUpdate = (callback: (preData: any, currentData: any) => boolean) => {
-                useUpdateRef.current.shouldUpdate = callback
-            }
-            const calcNeedUpdate = () => {
-                const { shouldUpdate } = useUpdateRef.current
-
-                if (innerValue !== undefined && shouldUpdate === null) {
-                    return true
-                } else if (shouldUpdate !== null) {
-                    return typeof shouldUpdate === 'boolean' ? shouldUpdate : shouldUpdate(preData, data)
-                } else {
-                    return false
+        debounceFn(() => {
+            const resetOptions = (next: any[]) => {
+                if (util.notEquals(innerOptions, next)) {
+                    setInnerOptions(next)
                 }
             }
-            //undifined 也是一种
-            if (useUpdateRef.current.shouldLoad !== false || calcNeedUpdate()) {
-                if (useUpdateRef.current.shouldLoad === undefined) {
-                    useUpdateRef.current.shouldLoad = false
+
+            if (typeof options !== 'function') {
+                resetOptions(util.resetOptions(options))
+            } else {
+                const shouldUpdate = (callback: (preData: any, currentData: any) => boolean) => {
+                    useUpdateRef.current.shouldUpdate = callback
                 }
+                const calcNeedUpdate = () => {
+                    const { shouldUpdate } = useUpdateRef.current
 
-                const promise = new Promise((resolve) => {
-                    setLoading(true)
-                    let nextValue = innerValue !== undefined ? innerValue : value
-                    options({ resolve, data, value: nextValue, preData, shouldUpdate });
-                });
+                    if (innerValue !== undefined && shouldUpdate === null) {
+                        return true
+                    } else if (shouldUpdate !== null) {
+                        return typeof shouldUpdate === 'boolean' ? shouldUpdate : shouldUpdate(preData, data)
+                    } else {
+                        return false
+                    }
+                }
+                //undifined 也是一种
+                if (useUpdateRef.current.shouldLoad !== false || calcNeedUpdate()) {
+                    if (useUpdateRef.current.shouldLoad === undefined) {
+                        useUpdateRef.current.shouldLoad = false
+                    }
 
-                promise.then((options: any) => {
-                    setLoading(false)
-                    resetOptions(util.resetOptions(options))
-                })
+                    const promise = new Promise((resolve) => {
+                        setLoading(true)
+                        let nextValue = innerValue !== undefined ? innerValue : value
+                        options({ resolve, data, value: nextValue, preData, shouldUpdate });
+                    });
+
+                    promise.then((options: any) => {
+                        setLoading(false)
+                        resetOptions(util.resetOptions(options))
+                    })
+                }
             }
-        }
+        })
     }, [prop, innerOptions, value, preData, data, options, innerValue])
 
     return {
@@ -370,7 +383,7 @@ export function useListComponent(onChange?: Function, onEvent?: Function, data?:
     }, [])
 
     const [innerData, setInnerData] = useState<any[]>(() => getResetData(data))
-    const innerRef = useRef<any>({ data })
+    const innerRef = useRef<any>({ data: innerData })
 
     const setNextData = useCallback((nextData: any) => {
         innerRef.current.data = nextData
@@ -408,9 +421,9 @@ export function useListComponent(onChange?: Function, onEvent?: Function, data?:
 
     //table 有层级时删除不正确，不要使用
     const innerEvent = useCallback((params: any) => {
-        if (params.prop === deleteProp || params.prop === pushProp) {
+        if ([deleteProp, deleteTipProp, pushProp].includes(params.prop)) {
             let nextData = [...innerRef.current.data]
-            if (params.prop === deleteProp) {
+            const deleteRow = () => {
                 nextData.splice(params.row.$index, 1)
                 nextData = nextData.map((el: any, index: number) => {
                     //没变化，引用
@@ -418,13 +431,28 @@ export function useListComponent(onChange?: Function, onEvent?: Function, data?:
                     //需要更新换地址
                     return { ...el, $index: index }
                 })
+            }
+            //异步
+            if (params.prop === deleteTipProp) {
+                Modal.confirm({
+                    title: '提示',
+                    content: '确定要删除行？',
+                    onOk() {
+                        deleteRow()
+                        setNextData(nextData)
+                    }
+                })
+                return
+            }
+
+            if (params.prop === deleteProp) {
+                deleteRow()
             } else if (params.prop === pushProp) {
                 nextData.push({ $index: nextData.length, key: util.getUUID() })
             }
 
             setNextData(nextData)
         }
-
         return onEvent && onEvent(params)
     }, [onEvent])
 

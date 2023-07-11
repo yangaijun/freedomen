@@ -71,7 +71,7 @@ const cloneData = (data: FData) => {
 }
 export interface FRegionRef {
     reset: (params?: any) => void,
-    set: (prop: string, callback: Function | any) => void,
+    set: (prop: string | FData, callback?: Function | any) => void,
     get: (prop?: string) => any
 }
 
@@ -101,17 +101,29 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
         params && setEventParams(params)
     }, [setPreDataAndCurrentData])
 
-    const setItemValue = useCallback((prop: string, callback: Function | any) => {
+    const setItemValue = useCallback((prop: string | FData, callback?: Function | any) => {
         if (!prop) return
 
         const nextData = cloneData(innerRef.current.data)
-        let value = callback
 
-        if (typeof callback === 'function') {
-            value = callback(getChainValueByString(nextData, prop))
+        const setValue = (data: any, prop: string, cb?: Function | any) => {
+            let value = cb
+
+            if (typeof value === 'function') {
+                value = callback(getChainValueByString(data, prop))
+            }
+            setChainValueByString(data, prop, value)
         }
-        setChainValueByString(nextData, prop, value)
-        changeInnerData(nextData)
+
+        if (typeof prop === 'string') {
+            setValue(nextData, prop, callback)
+            changeInnerData(nextData)
+        } else {
+            for (let key in prop) {
+                setValue(nextData, key, prop[key])
+            }
+            changeInnerData(nextData)
+        }
     }, [changeInnerData])
 
     const getItemValue = useCallback((prop?: string) => {
@@ -132,7 +144,8 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
         const nextData = innerRef.current.onEvent?.(params);
 
         if (nextData) {
-            changeInnerData(nextData)
+            //TODO 要优化么，return 来的值等主线程结束再执行
+            setTimeout(() => { changeInnerData(nextData) });
         } else if (nextData === null) {
             reset()
         }
@@ -171,7 +184,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
     useEffect(() => {
         innerRef.current.onEvent = onEvent
     }, [onEvent])
- 
+
     useUpdateEffect(() => {
         data && setPreDataAndCurrentData(data)
     }, [data, setPreDataAndCurrentData])
@@ -262,7 +275,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
 
         return makeJsx(getResetColumns(columns, innerData, innerRef.current.preData))
     }, [columns, innerData, makeJsx])
- 
+
     if ((_style && Object.keys(_style).length) || _className) {
         return <div style={style} className={_className}>
             {render}

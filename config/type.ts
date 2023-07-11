@@ -98,7 +98,12 @@ export interface ITableProps {
     columns: ITableColumnsType[],
     className?: string,
     pagination?: any,
-    config?: TableProps<any> & { selection?: boolean, disabled?: boolean |  ((row: any) => boolean), align?: 'left' | 'right' | 'center' },
+    config?: TableProps<any> & { 
+        selection?: boolean, 
+        selectionType?: 'checkbox' | 'radio',
+        disabled?: boolean |  ((row: any) => boolean), 
+        align?: 'left' | 'right' | 'center' 
+    },
     style?: React.CSSProperties,
     onChange?: (data: FData) => void,
     onEvent?: IEventType
@@ -388,6 +393,7 @@ export type ISelectItemProps = IRegionColumnItemProps & IDefaultParams & {
     config?: {
         filterable?: boolean,
         labelname?: string,
+        debounceWait?: number,
         valuename?: string,
         optionvalue?: boolean
     } & SelectProps<any>

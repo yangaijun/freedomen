@@ -1,7 +1,7 @@
 import React from "react";
 import { Tooltip } from "antd";
 import { getOriginalType } from "../../utils/base";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { getSubString } from "../../utils/util";
 import { ITextProps } from "../../config/type";
 import { useClassName, useStyle, useFilter, useEvent, useConfig, useRidkeyConfig } from "../../hooks/useBase";
@@ -13,7 +13,6 @@ const ridKeys = ['tooltip', 'maxlength'];
 function FText(props: ITextProps) {
     const { item } = props
 
-    const [subText, setSubText] = useState<string>('')
     const onEvent = useEvent(props)
     const style = useStyle(props)
     const className = useClassName(props)
@@ -31,9 +30,9 @@ function FText(props: ITextProps) {
         return defaultDomName
     }, [type])
 
-    useEffect(() => {
+    const subText = useMemo(() => {
         if (maxlength && filter?.length && maxlength < filter?.length) {
-            setSubText(getSubString(filter, maxlength))
+            return getSubString(filter, maxlength)
         }
     }, [filter, maxlength])
 

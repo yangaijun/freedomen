@@ -296,6 +296,23 @@ export function getOrderKey(level = 'k', index: number) {
   return level + "_" + index
 }
 
+export function debounce(fn: Function, wait: number, immediate = true) {
+  let timer: NodeJS.Timeout | null = null;
+
+  return function (this: any, ...args: any[]) {
+    if (timer) {
+      clearTimeout(timer);
+    };
+
+    if (immediate && !timer) {
+      fn.apply(this, args)
+    }
+
+    timer = setTimeout(() => {
+      fn.apply(this, args)
+    }, wait)
+  }
+};
 const utils = {
   notEquals,
   notEqualsArr,
