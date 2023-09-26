@@ -1,9 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getClass, getConfig, getOptionStyle, getStyle } from "../utils/base";
 import { defaultDebounceWait, defaultFilterVoidText, deleteProp, deleteTipProp, filterDefaultKey, names, pushProp } from "../config/props";
 import util, { debounce } from "../utils/util";
-import useUpdateEffect from "./useUpdateEffect"; 
+import useUpdateEffect from "./useUpdateEffect";
 import { Modal } from "antd";
+import { isDisabled } from "../config/permission";
+import { PermissionContext } from "../context";
 
 export function useChange(props: any): (value: any) => void {
     const { onChange, item } = props
@@ -52,14 +54,19 @@ export function useEvent(props: any): (type: string, value: any) => void {
 
 export function useDisabled(props: any): boolean | undefined {
     const { item: { disabled, $data: data, $preData: preData, value } } = props
+    const permissionContext = useContext(PermissionContext);
 
     const makeDisabled = useCallback(() => {
         let next = disabled
+        const params = { value, data, preData }
+        const innerIsDisabled = permissionContext.isDisabled || isDisabled
+        
         if (typeof disabled === 'function') {
-            next = disabled({ value, data, preData });
+            next = disabled(params);
         }
-        return next
-    }, [disabled, value, data, preData])
+
+        return next || innerIsDisabled?.({ ...params, column: props.item })
+    }, [disabled, value, permissionContext.isDisabled ,data, preData])
 
     const [innerDisabled, setInnerDisabled] = useState<boolean>(() => makeDisabled())
 
@@ -99,7 +106,7 @@ export function useClassName(props: any): string | undefined {
     return innerClassName
 }
 
-export function useStyle(props: any): React.CSSProperties {
+export function useStyle(props: any) {
     const { item: { type, style, $data: data, $preData: preData, value } } = props
 
     const makeStyle = useCallback(() => {
@@ -127,10 +134,10 @@ export function useStyle(props: any): React.CSSProperties {
         }
     }, [makeStyle, innerStyle])
 
-    return innerStyle as React.CSSProperties
+    return innerStyle
 }
 
-export function useItemStyle(props: any, options: any[]): React.CSSProperties[] {
+export function useItemStyle(props: any, options: any[]) {
     const { item } = props
 
     const makeStyles = useCallback(() => {
@@ -148,7 +155,31 @@ export function useItemStyle(props: any, options: any[]): React.CSSProperties[] 
         }
     }, [makeStyles, innerStyles])
 
-    return innerStyles as React.CSSProperties[]
+    return innerStyles
+}
+
+export function useAddCallbackValue(props: any, canCallbackValue?: any) {
+    const { item: { $data: data, $preData: preData, value } } = props
+
+    const makeAddCallbackValue = useCallback(() => {
+        let next = canCallbackValue
+
+        if (typeof canCallbackValue === 'function') {
+            next = canCallbackValue({ value, data, preData })
+        }
+        return next
+    }, [value, data, preData, canCallbackValue])
+
+    const [innerCallbackValue, setInnerCallbackValue] = useState<React.CSSProperties>(() => makeAddCallbackValue())
+
+    useUpdateEffect(() => {
+        let next = makeAddCallbackValue()
+        if (util.notEquals(innerCallbackValue, next)) {
+            setInnerCallbackValue(next)
+        }
+    }, [makeAddCallbackValue, innerCallbackValue])
+
+    return innerCallbackValue
 }
 
 export function useFilter(props: any): string | undefined {
@@ -161,7 +192,7 @@ export function useFilter(props: any): string | undefined {
         } else if (util.isPlainObject(filter)) {
             next = filter[value] || filter[filterDefaultKey];
         } else if (typeof filter === 'string') {
-            if (value === void 0) next = defaultFilterVoidText;
+            if (value === void 0 || value === null) next = defaultFilterVoidText;
 
             let date = new Date(value);
             if (date.toString() !== 'Invalid Date') {
@@ -237,7 +268,7 @@ export function useOptions(props: any, innerValue?: any): { options: any[], load
         }
         return []
     })
-   
+
     const useUpdateRef = useRef<any>({ shouldUpdate: null, shouldLoad: undefined })
 
     const debounceWait = config?.debounceWait || defaultDebounceWait

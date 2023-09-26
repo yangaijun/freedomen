@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useImperativeHandle, forwardRef, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useImperativeHandle, forwardRef, useMemo, useRef, useState, useContext } from 'react';
 import Render, { renderType, renderContainerType, customRenders } from '../render'
 import { FData, IEventParams, IRegionColumnItemProps, IRegionProps } from '../config/type';
 import { CONTAINER_NAMES, getContainerDom } from '../containers';
@@ -8,6 +8,7 @@ import { hasPermission } from '../config/permission';
 import { getElementDom } from '../elements';
 import { getFullType } from '../utils/base';
 import useUpdateEffect from '../hooks/useUpdateEffect';
+import { PermissionContext } from '../context';
 
 const keyName = 'Region'
 
@@ -88,6 +89,7 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
     //第一次放入的初始化数据，用户使用 reset 方法回到此数据
     const [initialData] = useState<FData>(() => data ? cloneData(data) : {})
     const [eventParams, setEventParams] = useState<IRegionEventParams>(null)
+    const permissionContext = useContext(PermissionContext);
     //将当前的数据放到上一次数据对象，将下一步的数据放入当前数据数据
     const setPreDataAndCurrentData = useCallback((nextData: FData) => {
         resetToOtherObject(innerRef.current.preData, innerRef.current.data)
@@ -229,12 +231,14 @@ const FRegion: React.ForwardRefRenderFunction<FRegionRef, IRegionProps> = (props
     const isLoad = useCallback((column: IRegionColumnItemProps) => {
         const { data, preData } = innerRef.current
         const params = { column, data, preData, value: column.value }
+        
+        const globalPermission = (permissionContext.hasPermission || hasPermission)?.(params)
 
         if (typeof column.load === 'function') {
-            return column.load(params) && hasPermission(params);
+            return column.load(params) && globalPermission;
         }
-        return hasPermission(params);
-    }, [])
+        return globalPermission;
+    }, [permissionContext.hasPermission])
 
     const makeJsx: any = useCallback((columns: IRegionColumnItemProps[], level?: string) => {
         if (!columns.length) return;

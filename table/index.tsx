@@ -44,7 +44,6 @@ function FTable(props: ITableProps) {
         );
     }, [onEvent, innerEvent,innerChange])
 
-
     const selectChange = useCallback((selectedRowKeys: any[], selectedRows: any[]) => {
         setSelecteds(selectedRowKeys)
         onEvent && onEvent({
@@ -149,6 +148,12 @@ function FTable(props: ITableProps) {
                             }
                         } else {
                             if (!tempColumn.type) tempColumn.type = 'text';
+                            if (tableColumnConfig.ellipsis) {
+                                tempColumn.config = {
+                                    ...tempColumn.config,
+                                    title: data[tempColumn.prop]
+                                }
+                            }
                             return getColumnDom([tempColumn], data, index);
                         }
                     }}

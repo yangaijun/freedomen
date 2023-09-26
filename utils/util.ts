@@ -165,13 +165,23 @@ export function splitConfig(config: any = {}, ridKeys: string[] = []) {
   });
   return newConfig;
 }
+
+export function getStringLen(fullText?: string) {
+  if (fullText === void 0 || fullText === null) return 0;
+  let count = 0;
+  for (let i = 0; i < fullText.length; i++) {
+    if (fullText.charCodeAt(i) > 127 || fullText.charCodeAt(i) === 94) count += 2;
+    else count++;
+  }
+  return count;
+}
 /**
  * 截职字符串
  * @param fullText 原始字符串
  * @param len 截取的长度，英文为1，中文为2， "12中" => 4; "中方" => 4; "123" => 3
  * @returns {string} //截取字符串
  */
-export function getSubString(fullText: string, len = 0) {
+export function getSubString(fullText?: string, len = 0) {
   if (fullText === void 0 || fullText === null) return fullText;
   let subText = '';
   for (let i = 0, k = 0; i < len; k++) {
@@ -207,18 +217,20 @@ export function objectMerge(target: any, coverKeys: string[] | null, ...source: 
   return target
 }
 
+function toObjectData(data: any) {
+  return isPlainObject(data) ? data : {}
+}
+
 export function isUndefined(data: any = {}, skey = "", split = '.') {
   if (!skey || !data) return true
 
   const keys = skey.split(split)
-  let currentData = data
+  let currentData = toObjectData(data)
   for (let i = 0; i < keys.length; i++) {
     let key = keys[i]
-
     if (i === keys.length - 1) {
       return !Object.keys(currentData).includes(key)
     }
-
     if (currentData[key] === undefined) {
       return true
     }
@@ -230,8 +242,7 @@ export function getChainValueByString(data: any = {}, skey: string, split = '.')
   if (!skey || !data) return
 
   const keys = skey.split(split)
-  let currentData = data
-
+  let currentData = toObjectData(data)
   for (let key of keys) {
     if (key in currentData) {
       currentData = currentData[key]
@@ -239,7 +250,6 @@ export function getChainValueByString(data: any = {}, skey: string, split = '.')
       return
     }
   }
-
   return currentData
 }
 

@@ -2,7 +2,7 @@ import React from "react";
 import { Tooltip } from "antd";
 import { getOriginalType } from "../../utils/base";
 import { useMemo } from "react";
-import { getSubString } from "../../utils/util";
+import { getStringLen, getSubString } from "../../utils/util";
 import { ITextProps } from "../../config/type";
 import { useClassName, useStyle, useFilter, useEvent, useConfig, useRidkeyConfig } from "../../hooks/useBase";
 import { clickType } from "../../config/props";
@@ -30,8 +30,10 @@ function FText(props: ITextProps) {
         return defaultDomName
     }, [type])
 
-    const subText = useMemo(() => {
-        if (maxlength && filter?.length && maxlength < filter?.length) {
+    const subText = useMemo(() => { 
+        let filterLen = getStringLen(filter)
+
+        if (maxlength && filterLen && maxlength < filterLen) {
             return getSubString(filter, maxlength)
         }
     }, [filter, maxlength])
