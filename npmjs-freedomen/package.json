@@ -1,0 +1,24 @@
+{
+  "name": "freedomen",
+  "version": "3.0.8",
+  "description": "react UI",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "homepage": "https://light2f.com",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yangaijun/freedomen"
+  },
+  "keywords": [
+    "react",
+    "antd",
+    "ui",
+    "lowcode",
+    "form",
+    "table"
+  ],
+  "author": "yangaijun",
+  "license": "ISC"
+}
